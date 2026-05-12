@@ -9,3 +9,5 @@ def root():
 
 app.include_router(auth_router)
 
+from app.database.connection import Base, engine
+Base.metadata.create_all(bind=engine)
