@@ -1,4 +1,6 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
 from app.auth.routes import router as auth_router
 
 # ⭐ ADMIN ROUTERS
@@ -11,6 +13,20 @@ from app.routers.admin import messages as admin_messages
 from app.routers.admin import users as admin_users
 
 app = FastAPI()
+
+# ⭐ CORS CONFIG — THIS FIXES YOUR 405 OPTIONS ERROR
+origins = [
+    "http://localhost:5173",
+    "https://delphiafit-web.vercel.app",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],   # ← THIS is what fixes OPTIONS /auth/login 405
+    allow_headers=["*"],
+)
 
 @app.get("/")
 def root():
