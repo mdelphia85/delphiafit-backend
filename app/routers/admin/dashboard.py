@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 
-from app.database.connection import get_db
+from app.database import get_db
 from app.models.user import User
 from app.models.announcements import Announcement
 from app.routers.admin.auth import verify_admin
