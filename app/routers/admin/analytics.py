@@ -4,7 +4,6 @@ from datetime import datetime, timedelta
 
 from app.database.connection import get_db
 from app.models.user import User
-from app.routers.admin.auth import verify_admin
 
 # If you have these models, import them:
 # from app.models.daily_log import DailyLog
@@ -16,8 +15,7 @@ router = APIRouter(prefix="/admin/analytics", tags=["Admin Analytics"])
 
 @router.get("/")
 def get_admin_analytics(
-    db: Session = Depends(get_db),
-    admin=Depends(verify_admin)
+    db: Session = Depends(get_db)
 ):
     today = datetime.utcnow().date()
     week_ago = today - timedelta(days=7)
@@ -39,7 +37,6 @@ def get_admin_analytics(
     # -----------------------------
     # DAILY ACTIVE USERS (DAU)
     # -----------------------------
-    # If you have a DailyLog model:
     try:
         from app.models.daily_log import DailyLog
         dau = (
@@ -49,7 +46,7 @@ def get_admin_analytics(
             .count()
         )
     except:
-        dau = 0  # fallback if model doesn't exist yet
+        dau = 0
 
     # -----------------------------
     # WORKOUT COUNT (LAST 7 DAYS)
@@ -77,9 +74,6 @@ def get_admin_analytics(
     except:
         sports_last_week = 0
 
-    # -----------------------------
-    # RETURN ANALYTICS PAYLOAD
-    # -----------------------------
     return {
         "total_users": total_users,
         "new_users_last_7_days": new_users,
