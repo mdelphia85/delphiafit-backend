@@ -5,9 +5,8 @@ from datetime import datetime, timedelta
 from app.database.connection import get_db
 from app.models.user import User
 from app.models.announcements import Announcement
-from app.routers.admin.auth import verify_admin
 
-# If you have these, we'll try to use them:
+# Optional models:
 # from app.models.messages import Message
 # from app.models.logs import LogEntry
 
@@ -16,8 +15,7 @@ router = APIRouter(prefix="/admin/dashboard", tags=["Admin Dashboard"])
 
 @router.get("/")
 def get_admin_dashboard(
-    db: Session = Depends(get_db),
-    admin=Depends(verify_admin)
+    db: Session = Depends(get_db)
 ):
     today = datetime.utcnow().date()
     week_ago = today - timedelta(days=7)
