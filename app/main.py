@@ -14,17 +14,19 @@ from app.routers.admin import users as admin_users
 
 app = FastAPI()
 
-# ⭐ CORS CONFIG — THIS FIXES YOUR 405 OPTIONS ERROR
+# ⭐ UPDATED CORS CONFIG — FIXES YOUR PRODUCTION CORS BLOCK
 origins = [
     "http://localhost:5173",
     "https://delphiafit-web.vercel.app",
+    "https://www.delphiafit.com",
+    "https://delphiafit.com",
 ]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],   # ← THIS is what fixes OPTIONS /auth/login 405
+    allow_methods=["*"],   # Allows OPTIONS, POST, GET, etc.
     allow_headers=["*"],
 )
 
@@ -44,5 +46,6 @@ app.include_router(admin_logs.router)
 app.include_router(admin_messages.router)
 app.include_router(admin_users.router)
 
+# ⭐ DATABASE INIT
 from app.database.connection import Base, engine
 Base.metadata.create_all(bind=engine)
