@@ -4,7 +4,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.auth.routes import router as auth_router
 
 # ⭐ ADMIN ROUTERS
-from app.routers.admin import auth as admin_auth
 from app.routers.admin import analytics as admin_analytics
 from app.routers.admin import announcements as admin_announcements
 from app.routers.admin import dashboard as admin_dashboard
@@ -26,7 +25,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],   # Allows OPTIONS, POST, GET, etc.
+    allow_methods=["*"],
     allow_headers=["*"],
 )
 
@@ -37,8 +36,7 @@ def root():
 # ⭐ USER AUTH ROUTES
 app.include_router(auth_router)
 
-# ⭐ ADMIN ROUTES
-app.include_router(admin_auth.router)
+# ⭐ ADMIN ROUTES (only the ones that still exist)
 app.include_router(admin_analytics.router)
 app.include_router(admin_announcements.router)
 app.include_router(admin_dashboard.router)
