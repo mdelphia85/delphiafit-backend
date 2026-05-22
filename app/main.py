@@ -1,9 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-# ⭐ AUTH ROUTES
-from app.routers.auth import router as auth_router
-
+# ⭐ AUTH ROUTES (login + register)
+from app.routers import auth as auth_router
+from app.routers import register as register_router
 
 # ⭐ ADMIN ROUTERS
 from app.routers.admin import analytics as admin_analytics
@@ -19,8 +19,7 @@ from app.routers.tactical import ems as tactical_ems
 from app.routers.tactical import police as tactical_police
 from app.routers.tactical import military as tactical_military
 
-
-# ⭐ USER ROUTES (NEW)
+# ⭐ USER ROUTES
 from app.routers import users as user_routes
 
 
@@ -46,12 +45,12 @@ app.add_middleware(
 def root():
     return {"status": "backend is running"}
 
-# ⭐ USER AUTH ROUTES
-app.include_router(auth_router)
+# ⭐ AUTH ROUTES
+app.include_router(auth_router.router, prefix="/auth")
+app.include_router(register_router.router, prefix="/auth")
 
-# ⭐ USER ROUTES (NEW)
+# ⭐ USER ROUTES
 app.include_router(user_routes.router)
-app.include_router(register_router, prefix="/auth")
 
 # ⭐ ADMIN ROUTES
 app.include_router(admin_analytics.router)
