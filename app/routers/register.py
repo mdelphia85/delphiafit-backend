@@ -19,7 +19,7 @@ def register_user(user: UserCreate, db: Session = Depends(get_db)):
     new_user = User(
         name=user.name,
         email=user.email,
-        password=hash_password(user.password)
+        hashed_password=hash_password(user.password)   # ✔ FIXED
     )
 
     db.add(new_user)
@@ -27,4 +27,3 @@ def register_user(user: UserCreate, db: Session = Depends(get_db)):
     db.refresh(new_user)
 
     return {"success": True, "message": "Account created"}
-
