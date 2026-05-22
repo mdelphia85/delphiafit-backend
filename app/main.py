@@ -18,6 +18,7 @@ from app.routers.tactical import ems as tactical_ems
 from app.routers.tactical import police as tactical_police
 from app.routers.tactical import military as tactical_military
 
+
 # ⭐ USER ROUTES (NEW)
 from app.routes import users as user_routes
 
