@@ -5,27 +5,14 @@ class TacticalDrill(Base):
     __tablename__ = "tactical_drills"
 
     id = Column(Integer, primary_key=True, index=True)
-    division = Column(String, index=True)   # firefighters, ems, police, military
-    category = Column(String, index=True)
-    name = Column(String)
-    level = Column(String)
-    duration = Column(String)
-    notes = Column(Text)
-from sqlalchemy import Column, Integer, String, Text
-from app.database.connection import Base
-
-class TacticalDrill(Base):
-    __tablename__ = "tactical_drills"
-
-    id = Column(Integer, primary_key=True, index=True)
 
     # Core fields (manual + generator)
-    division = Column(String, index=True)     # firefighters, ems, police, military
+    division = Column(String, index=True)
     category = Column(String, index=True)
     name = Column(String)
     level = Column(String, nullable=True)
     duration = Column(String, nullable=True)
-    notes = Column(Text, nullable=True)       # manual notes OR generator description
+    notes = Column(Text, nullable=True)
 
     # Shared generator metadata
     intensity = Column(String, nullable=True)
