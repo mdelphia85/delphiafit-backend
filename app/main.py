@@ -20,7 +20,8 @@ from app.routers.tactical import military as tactical_military
 
 
 # ⭐ USER ROUTES (NEW)
-from app.routes import users as user_routes
+from app.routers import users as user_routes
+
 
 app = FastAPI()
 
