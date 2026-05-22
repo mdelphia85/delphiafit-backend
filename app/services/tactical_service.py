@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 
-from app.models.tactical import TacticalDrill
+from app.models.tactical_drill import TacticalDrill
 from app.schemas.tactical import TacticalDrillCreate, TacticalDrillUpdate
 
 
