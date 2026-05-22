@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+# ⭐ AUTH ROUTES
 from app.auth.routes import router as auth_router
 
 # ⭐ ADMIN ROUTERS
@@ -11,9 +12,18 @@ from app.routers.admin import logs as admin_logs
 from app.routers.admin import messages as admin_messages
 from app.routers.admin import users as admin_users
 
+# ⭐ TACTICAL ROUTERS
+from app.routers.tactical import firefighters as tactical_firefighters
+from app.routers.tactical import ems as tactical_ems
+from app.routers.tactical import police as tactical_police
+from app.routers.tactical import military as tactical_military
+
+# ⭐ USER ROUTES (NEW)
+from app.routes import users as user_routes
+
 app = FastAPI()
 
-# ⭐ UPDATED CORS CONFIG — FIXES YOUR PRODUCTION CORS BLOCK
+# ⭐ UPDATED CORS CONFIG — REQUIRED FOR PRODUCTION
 origins = [
     "http://localhost:5173",
     "https://delphiafit-web.vercel.app",
@@ -36,13 +46,22 @@ def root():
 # ⭐ USER AUTH ROUTES
 app.include_router(auth_router)
 
-# ⭐ ADMIN ROUTES (only the ones that still exist)
+# ⭐ USER ROUTES (NEW)
+app.include_router(user_routes.router)
+
+# ⭐ ADMIN ROUTES
 app.include_router(admin_analytics.router)
 app.include_router(admin_announcements.router)
 app.include_router(admin_dashboard.router)
 app.include_router(admin_logs.router)
 app.include_router(admin_messages.router)
 app.include_router(admin_users.router)
+
+# ⭐ TACTICAL ROUTES
+app.include_router(tactical_firefighters.router)
+app.include_router(tactical_ems.router)
+app.include_router(tactical_police.router)
+app.include_router(tactical_military.router)
 
 # ⭐ DATABASE INIT
 from app.database.connection import Base, engine
