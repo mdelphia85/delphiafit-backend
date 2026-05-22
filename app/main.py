@@ -2,7 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 # ⭐ AUTH ROUTES
-from app.auth.routes import router as auth_router
+from app.routers.auth import router as auth_router
+
 
 # ⭐ ADMIN ROUTERS
 from app.routers.admin import analytics as admin_analytics
