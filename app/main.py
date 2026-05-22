@@ -51,6 +51,7 @@ app.include_router(auth_router)
 
 # ⭐ USER ROUTES (NEW)
 app.include_router(user_routes.router)
+app.include_router(register_router, prefix="/auth")
 
 # ⭐ ADMIN ROUTES
 app.include_router(admin_analytics.router)
