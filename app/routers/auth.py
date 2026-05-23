@@ -7,8 +7,13 @@ from app.database.connection import get_db
 from app.auth.hashing import hash_password, verify_password
 from app.auth.jwt_handler import create_access_token, decode_access_token
 
-router = APIRouter(tags=["Auth"])
-
+# ---------------------------------------------------------
+# AUTH ROUTER WITH PREFIX
+# ---------------------------------------------------------
+router = APIRouter(
+    prefix="/auth",
+    tags=["Auth"]
+)
 
 # ---------------------------------------------------------
 # REGISTER
@@ -17,7 +22,10 @@ router = APIRouter(tags=["Auth"])
 def register(user: UserCreate, db: Session = Depends(get_db)):
     existing = db.query(User).filter(User.email == user.email).first()
     if existing:
-        raise HTTPException(status_code=400, detail="Email already registered")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already registered"
+        )
 
     new_user = User(
         email=user.email,
@@ -40,11 +48,15 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
     if not db_user or not verify_password(user.password, db_user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid credentials"
+            detail="Invalid email or password"
         )
 
     token = create_access_token({"sub": db_user.email})
-    return {"access_token": token, "token_type": "bearer"}
+
+    return {
+        "access_token": token,
+        "token_type": "bearer"
+    }
 
 # ---------------------------------------------------------
 # AUTH ME
@@ -57,12 +69,18 @@ def get_me(
     email = token_data.get("sub")
 
     if not email:
-        raise HTTPException(status_code=401, detail="Invalid token payload")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token payload"
+        )
 
     user = db.query(User).filter(User.email == email).first()
 
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
 
     return {
         "id": user.id,
