@@ -1,14 +1,12 @@
+import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
-# SQLite database file
-DATABASE_URL = "sqlite:///./app.db"
+# Load DATABASE_URL from Railway environment variables
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-# Create the engine
-engine = create_engine(
-    DATABASE_URL,
-    connect_args={"check_same_thread": False}  # Required for SQLite
-)
+# Create the engine for Postgres
+engine = create_engine(DATABASE_URL)
 
 # Create a session factory
 SessionLocal = sessionmaker(
