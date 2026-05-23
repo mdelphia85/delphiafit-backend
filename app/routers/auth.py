@@ -8,12 +8,9 @@ from app.auth.hashing import hash_password, verify_password
 from app.auth.jwt_handler import create_access_token, decode_access_token
 
 # ---------------------------------------------------------
-# AUTH ROUTER WITH PREFIX
+# AUTH ROUTER (NO PREFIX HERE)
 # ---------------------------------------------------------
-router = APIRouter(
-    prefix="/auth",
-    tags=["Auth"]
-)
+router = APIRouter(tags=["Auth"])
 
 # ---------------------------------------------------------
 # REGISTER

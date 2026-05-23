@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-# ⭐ AUTH ROUTES (login + register)
+# ⭐ AUTH ROUTES
 from app.routers import auth as auth_router
 from app.routers import register as register_router
 
@@ -22,10 +22,9 @@ from app.routers.tactical import military as tactical_military
 # ⭐ USER ROUTES
 from app.routers import users as user_routes
 
-
 app = FastAPI()
 
-# ⭐ UPDATED CORS CONFIG — REQUIRED FOR PRODUCTION
+# ⭐ CORS CONFIG
 origins = [
     "http://localhost:5173",
     "https://delphiafit-web.vercel.app",
@@ -45,7 +44,7 @@ app.add_middleware(
 def root():
     return {"status": "backend is running"}
 
-# ⭐ AUTH ROUTES
+# ⭐ AUTH ROUTES (correct)
 app.include_router(auth_router.router, prefix="/auth")
 app.include_router(register_router.router, prefix="/auth")
 
