@@ -7,14 +7,9 @@ from app.database.connection import get_db
 from app.auth.hashing import hash_password, verify_password
 from app.auth.jwt_handler import create_access_token, decode_access_token
 
-# ---------------------------------------------------------
-# AUTH ROUTER (NO PREFIX HERE)
-# ---------------------------------------------------------
 router = APIRouter(tags=["Auth"])
 
-# ---------------------------------------------------------
 # REGISTER
-# ---------------------------------------------------------
 @router.post("/register", response_model=UserResponse)
 def register(user: UserCreate, db: Session = Depends(get_db)):
     existing = db.query(User).filter(User.email == user.email).first()
@@ -35,9 +30,7 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
 
     return new_user
 
-# ---------------------------------------------------------
 # LOGIN
-# ---------------------------------------------------------
 @router.post("/login")
 def login(user: UserLogin, db: Session = Depends(get_db)):
     db_user = db.query(User).filter(User.email == user.email).first()
@@ -55,9 +48,7 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
         "token_type": "bearer"
     }
 
-# ---------------------------------------------------------
 # AUTH ME
-# ---------------------------------------------------------
 @router.get("/me")
 def get_me(
     token_data: dict = Depends(decode_access_token),
