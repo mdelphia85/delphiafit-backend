@@ -48,7 +48,7 @@ def root():
 
 # ⭐ AUTH ROUTES (correct)
 app.include_router(auth_router.router, prefix="/auth")
-app.include_router(register_router.router, prefix="/auth")
+
 
 # ⭐ USER ROUTES
 app.include_router(user_routes.router)
