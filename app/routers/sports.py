@@ -2993,6 +2993,7 @@ SPORTS = {
         "modifiers": ["Light", "High‑Intensity", "Endurance", "Explosive"],
     },
 },
+},
 # ---------------------------------------------------------
 
 
