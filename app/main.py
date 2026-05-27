@@ -25,10 +25,12 @@ from app.routers.tactical import military as tactical_military
 from app.routers import users as user_routes
 
 # ⭐ SPORTS ROUTES
+from fastapi import FastAPI
 from app.routers import sports
-app.include_router(sports.router)
 
-app = FastAPI()
+app = FastAPI()   # ← THIS MUST COME BEFORE include_router
+
+app.include_router(sports.router)
 
 # ⭐ CORS CONFIG
 origins = [
