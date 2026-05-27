@@ -8,7 +8,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 # ---------------------------------------------------------
 # ⭐ PASTE YOUR FULL PYTHON SPORTS GENERATOR HERE
 #
-# SPORTS = {
+SPORTS = {
 "Boxing": {
     "Punching Technique": {
         "actions": ["Jab", "Cross", "Hook", "Uppercut"],
