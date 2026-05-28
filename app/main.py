@@ -2,6 +2,7 @@
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.proxy_headers import ProxyHeadersMiddleware
 
 # ⭐ AUTH ROUTES
 from app.routers import auth as auth_router
@@ -25,12 +26,13 @@ from app.routers.tactical import military as tactical_military
 from app.routers import users as user_routes
 
 # ⭐ SPORTS ROUTES
-from fastapi import FastAPI
 from app.routers import sports
 
-app = FastAPI()   # ← THIS MUST COME BEFORE include_router
+app = FastAPI()
 
-app.include_router(sports.router)
+# ⭐ FIX HTTPS REDIRECT PROBLEM
+# This makes FastAPI respect X-Forwarded-Proto from Railway
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 
 # ⭐ CORS CONFIG
 origins = [
@@ -52,22 +54,16 @@ app.add_middleware(
 def root():
     return {"status": "backend is running"}
 
-# ⭐ AUTH ROUTES (correct)
+# ⭐ ROUTES
+app.include_router(sports.router)
 app.include_router(auth_router.router, prefix="/auth")
-
-
-# ⭐ USER ROUTES
 app.include_router(user_routes.router)
-
-# ⭐ ADMIN ROUTES
 app.include_router(admin_analytics.router)
 app.include_router(admin_announcements.router)
 app.include_router(admin_dashboard.router)
 app.include_router(admin_logs.router)
 app.include_router(admin_messages.router)
 app.include_router(admin_users.router)
-
-# ⭐ TACTICAL ROUTES
 app.include_router(tactical_firefighters.router)
 app.include_router(tactical_ems.router)
 app.include_router(tactical_police.router)
