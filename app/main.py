@@ -31,7 +31,8 @@ from app.routers import sports
 app = FastAPI()
 
 # ⭐ FIX HTTPS REDIRECT PROBLEM ON RAILWAY
-app.add_middleware(HTTPSRedirectMiddleware)
+from starlette.middleware.proxy_headers import ProxyHeadersMiddleware
+
 
 # ⭐ CORS CONFIG
 origins = [
