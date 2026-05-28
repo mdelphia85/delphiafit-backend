@@ -2995,7 +2995,49 @@ SPORTS = {
 },
 },
 # ---------------------------------------------------------
+# Helper functions
+# ---------------------------------------------------------
 
+def get_sport_list():
+    return list(SPORTS.keys())
+
+
+def get_categories_for_sport(sport: str):
+    sport_data = SPORTS.get(sport)
+    if not sport_data:
+        return []
+    return list(sport_data.keys())
+
+
+def get_levels_for_category(sport: str, category: str):
+    # Standardized levels for all sports
+    return ["Beginner", "Intermediate", "Advanced", "Elite", "Custom"]
+
+
+def generate_drill(sport: str, category: str, level: str):
+    sport_data = SPORTS.get(sport)
+    if not sport_data:
+        raise HTTPException(status_code=404, detail="Sport not found")
+
+    category_data = sport_data.get(category)
+    if not category_data:
+        raise HTTPException(status_code=404, detail="Category not found")
+
+    actions = category_data.get("actions", [])
+    modifiers = category_data.get("modifiers", [])
+
+    if not actions or not modifiers:
+        raise HTTPException(status_code=400, detail="No actions/modifiers available")
+
+    action = random.choice(actions)
+    modifier = random.choice(modifiers)
+
+    return f"{category} - {level}: {action} ({modifier})"
+
+
+# ---------------------------------------------------------
+# API ROUTES
+# ---------------------------------------------------------
 
 @router.get("/")
 def get_sports(token: str = Depends(oauth2_scheme)):
@@ -3006,7 +3048,7 @@ def get_sports(token: str = Depends(oauth2_scheme)):
 def get_skills(sport: str, token: str = Depends(oauth2_scheme)):
     if sport not in SPORTS:
         raise HTTPException(status_code=404, detail="Sport not found")
-    return {"skills": list(SPORTS[sport].keys())}
+    return {"skills": get_categories_for_sport(sport)}
 
 
 @router.get("/{sport}/{category}/levels")
@@ -3016,8 +3058,7 @@ def get_levels(sport: str, category: str, token: str = Depends(oauth2_scheme)):
     if category not in SPORTS[sport]:
         raise HTTPException(status_code=404, detail="Category not found")
 
-    # You don’t have levels in your generator, so we return a default
-    return {"levels": ["Any"]}
+    return {"levels": get_levels_for_category(sport, category)}
 
 
 @router.get("/{sport}/{category}/{level}/drills")
@@ -3027,5 +3068,5 @@ def get_drill(sport: str, category: str, level: str, token: str = Depends(oauth2
     if category not in SPORTS[sport]:
         raise HTTPException(status_code=404, detail="Category not found")
 
-    drill = generate_drill(sport)
+    drill = generate_drill(sport, category, level)
     return {"drill": drill}
