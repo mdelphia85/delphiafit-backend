@@ -1,8 +1,9 @@
 # force rebuild
+# force rebuild
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from starlette.middleware.httpsredirect import HTTPSRedirectMiddleware
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 # ⭐ AUTH ROUTES
 from app.routers import auth as auth_router
@@ -30,9 +31,11 @@ from app.routers import sports
 
 app = FastAPI()
 
-# ⭐ FIX HTTPS REDIRECT PROBLEM ON RAILWAY
-from starlette.middleware.proxy_headers import ProxyHeadersMiddleware
-
+# ⭐ FIX REDIRECT LOOP + ALLOW RAILWAY PROXY
+app.add_middleware(
+    TrustedHostMiddleware,
+    allowed_hosts=["*"]
+)
 
 # ⭐ CORS CONFIG
 origins = [
