@@ -2,7 +2,7 @@
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.middleware.forwarded import ForwardedHeadersMiddleware
+from starlette.middleware.httpsredirect import HTTPSRedirectMiddleware
 
 # ⭐ AUTH ROUTES
 from app.routers import auth as auth_router
@@ -31,8 +31,7 @@ from app.routers import sports
 app = FastAPI()
 
 # ⭐ FIX HTTPS REDIRECT PROBLEM ON RAILWAY
-# Makes FastAPI respect X-Forwarded-Proto from Railway
-app.add_middleware(ForwardedHeadersMiddleware)
+app.add_middleware(HTTPSRedirectMiddleware)
 
 # ⭐ CORS CONFIG
 origins = [
