@@ -1,9 +1,17 @@
 # force rebuild
-# force rebuild
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from starlette.middleware.trustedhost import TrustedHostMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+
+# ⭐ Custom middleware to force HTTPS on Railway
+class ForceHTTPSMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        # If Railway forwarded the request as HTTP, fix it
+        if request.headers.get("x-forwarded-proto") == "http":
+            url = request.url.replace(scheme="https")
+            return RedirectResponse(url=url, status_code=307)
+        return await call_next(request)
 
 # ⭐ AUTH ROUTES
 from app.routers import auth as auth_router
@@ -31,11 +39,8 @@ from app.routers import sports
 
 app = FastAPI()
 
-# ⭐ FIX REDIRECT LOOP + ALLOW RAILWAY PROXY
-app.add_middleware(
-    TrustedHostMiddleware,
-    allowed_hosts=["*"]
-)
+# ⭐ Add custom HTTPS fix
+app.add_middleware(ForceHTTPSMiddleware)
 
 # ⭐ CORS CONFIG
 origins = [
