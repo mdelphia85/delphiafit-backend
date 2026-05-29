@@ -58,7 +58,7 @@ def root():
 # ---------------------------------------------------------
 # ⭐ ROUTERS
 # ---------------------------------------------------------
-app.include_router(sports.router)app.include_router(sports.router, prefix="/sports")
+app.include_router(sports.router, prefix="/sports")
 app.include_router(auth_router.router, prefix="/auth")
 app.include_router(user_routes.router)
 
