@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 # ⭐ ADD THIS IMPORT (wherever you had it before)
-from app.middleware.fix_proxy_scheme import FixProxySchemeMiddleware  # adjust path if yours is different
+  # adjust path if yours is different
 
 # ⭐ ROUTERS
 from app.routers import sports
@@ -44,7 +44,7 @@ app.add_middleware(
 )
 
 # ⭐ THIS is the only added line
-app.add_middleware(FixProxySchemeMiddleware)
+
 
 # ---------------------------------------------------------
 # ⭐ ROOT
