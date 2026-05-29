@@ -1,13 +1,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-# ⭐ ADD THIS IMPORT (wherever you had it before)
-  # adjust path if yours is different
-
-# ⭐ ROUTERS
+# ---------------------------------------------------------
+# IMPORTS
+# ---------------------------------------------------------
 from app.routers import sports
 from app.routers import auth as auth_router
-from app.routers import users as user_routes
+from app.routers import users as users_router
 
 from app.routers.admin import analytics as admin_analytics
 from app.routers.admin import announcements as admin_announcements
@@ -23,10 +22,13 @@ from app.routers.tactical import military as tactical_military
 
 from app.database.connection import Base, engine
 
+# ---------------------------------------------------------
+# APP INIT
+# ---------------------------------------------------------
 app = FastAPI()
 
 # ---------------------------------------------------------
-# ⭐ CORS MUST BE FIRST
+# CORS
 # ---------------------------------------------------------
 origins = [
     "http://localhost:5173",
@@ -43,24 +45,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ⭐ THIS is the only added line
-
-
 # ---------------------------------------------------------
-# ⭐ ROOT
+# ROOT
 # ---------------------------------------------------------
 @app.get("/")
 def root():
     return {"status": "backend is running"}
 
-# (rest of your file unchanged)
-
 # ---------------------------------------------------------
-# ⭐ ROUTERS
+# ROUTERS
 # ---------------------------------------------------------
 app.include_router(sports.router, prefix="/sports")
 app.include_router(auth_router.router, prefix="/auth")
-app.include_router(user_routes.router)
+app.include_router(users_router.router)
 
 app.include_router(admin_analytics.router)
 app.include_router(admin_announcements.router)
@@ -74,8 +71,7 @@ app.include_router(tactical_ems.router)
 app.include_router(tactical_police.router)
 app.include_router(tactical_military.router)
 
-
 # ---------------------------------------------------------
-# ⭐ DATABASE INIT
+# DATABASE INIT
 # ---------------------------------------------------------
 Base.metadata.create_all(bind=engine)
