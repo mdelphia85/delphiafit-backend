@@ -2998,24 +2998,30 @@ SPORTS = {
 # Helper functions
 # ---------------------------------------------------------
 
-def get_sport_list():
-    return list(SPORTS.keys())
+def _get_sports_dict():
+    # Handle case where SPORTS is a tuple like ( { ... }, )
+    if isinstance(SPORTS, tuple):
+        return SPORTS[0]
+    return SPORTS
 
+def get_sport_list():
+    sports_dict = _get_sports_dict()
+    return list(sports_dict.keys())
 
 def get_categories_for_sport(sport: str):
-    sport_data = SPORTS.get(sport)
+    sports_dict = _get_sports_dict()
+    sport_data = sports_dict.get(sport)
     if not sport_data:
         return []
     return list(sport_data.keys())
-
 
 def get_levels_for_category(sport: str, category: str):
     # Standardized levels for all sports
     return ["Beginner", "Intermediate", "Advanced", "Elite", "Custom"]
 
-
 def generate_drill(sport: str, category: str, level: str):
-    sport_data = SPORTS.get(sport)
+    sports_dict = _get_sports_dict()
+    sport_data = sports_dict.get(sport)
     if not sport_data:
         raise HTTPException(status_code=404, detail="Sport not found")
 
@@ -3033,6 +3039,7 @@ def generate_drill(sport: str, category: str, level: str):
     modifier = random.choice(modifiers)
 
     return f"{category} - {level}: {action} ({modifier})"
+
 
 
 # ---------------------------------------------------------
