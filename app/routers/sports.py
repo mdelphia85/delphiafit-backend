@@ -3039,6 +3039,7 @@ def generate_drill(sport: str, category: str, level: str):
 # API ROUTES
 # ---------------------------------------------------------
 
+@@router.get("")
 @router.get("/")
 def get_sports(token: str = Depends(oauth2_scheme)):
     return {"sports": get_sport_list()}
