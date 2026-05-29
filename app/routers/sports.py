@@ -3052,7 +3052,7 @@ def get_sports(token: str = Depends(oauth2_scheme)):
     return {"sports": get_sport_list()}
 
 
-@router.get("/{sport}/skills")
+@router.get("/sports/{sport}/skills")
 def get_skills(sport: str, token: str = Depends(oauth2_scheme)):
     sports_dict = _get_sports_dict()
     if sport not in sports_dict:
@@ -3060,7 +3060,8 @@ def get_skills(sport: str, token: str = Depends(oauth2_scheme)):
     return {"skills": get_categories_for_sport(sport)}
 
 
-@router.get("/{sport}/{category}/levels")
+
+@router.get("/sports/{sport}/{category}/levels")
 def get_levels(sport: str, category: str, token: str = Depends(oauth2_scheme)):
     sports_dict = _get_sports_dict()
     if sport not in sports_dict:
@@ -3069,6 +3070,7 @@ def get_levels(sport: str, category: str, token: str = Depends(oauth2_scheme)):
         raise HTTPException(status_code=404, detail="Category not found")
 
     return {"levels": get_levels_for_category(sport, category)}
+
 
 
 @router.get("/{sport}/{category}/{level}/drills")
