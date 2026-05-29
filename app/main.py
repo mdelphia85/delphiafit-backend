@@ -23,28 +23,39 @@ from app.routers import register as register_router
 from app.routers.admin import analytics as admin_analytics
 from app.routers.admin import announcements as admin_announcements
 from app.routers.admin import dashboard as admin_dashboard
+from afrom fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+# ⭐ ROUTERS
+from app.routers import sports
+from app.routers import auth as auth_router
+from app.routers import users as user_routes
+
+from app.routers.admin import analytics as admin_analytics
+from app.routers.admin import announcements as admin_announcements
+from app.routers.admin import dashboard as admin_dashboard
 from app.routers.admin import logs as admin_logs
 from app.routers.admin import messages as admin_messages
 from app.routers.admin import users as admin_users
 
-# ⭐ TACTICAL ROUTERS
 from app.routers.tactical import firefighters as tactical_firefighters
 from app.routers.tactical import ems as tactical_ems
 from app.routers.tactical import police as tactical_police
 from app.routers.tactical import military as tactical_military
 
-# ⭐ USER ROUTES
-from app.routers import users as user_routes
+# ⭐ DATABASE
+from app.database.connection import Base, engine
 
-# ⭐ SPORTS ROUTES
-from app.routers import sports
+# ⭐ MIDDLEWARE
+from app.middleware.proxy_fix import FixProxySchemeMiddleware
+
 
 app = FastAPI()
 
-# ⭐ THIS is the fix — not RedirectResponse
-app.add_middleware(FixProxySchemeMiddleware)
 
-# ⭐ CORS CONFIG
+# ---------------------------------------------------------
+# ⭐ CORS MUST BE FIRST — ALWAYS
+# ---------------------------------------------------------
 origins = [
     "http://localhost:5173",
     "https://delphiafit-web.vercel.app",
@@ -60,24 +71,42 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+# ---------------------------------------------------------
+# ⭐ Proxy fix MUST come AFTER CORS
+# ---------------------------------------------------------
+app.add_middleware(FixProxySchemeMiddleware)
+
+
+# ---------------------------------------------------------
+# ⭐ ROOT
+# ---------------------------------------------------------
 @app.get("/")
 def root():
     return {"status": "backend is running"}
 
-# ⭐ ROUTES
+
+# ---------------------------------------------------------
+# ⭐ ROUTERS
+# ---------------------------------------------------------
 app.include_router(sports.router)
 app.include_router(auth_router.router, prefix="/auth")
 app.include_router(user_routes.router)
+
 app.include_router(admin_analytics.router)
 app.include_router(admin_announcements.router)
 app.include_router(admin_dashboard.router)
 app.include_router(admin_logs.router)
 app.include_router(admin_messages.router)
 app.include_router(admin_users.router)
+
 app.include_router(tactical_firefighters.router)
 app.include_router(tactical_ems.router)
 app.include_router(tactical_police.router)
 app.include_router(tactical_military.router)
 
-from app.database.connection import Base, engine
+
+# ---------------------------------------------------------
+# ⭐ DATABASE INIT
+# ---------------------------------------------------------
 Base.metadata.create_all(bind=engine)
