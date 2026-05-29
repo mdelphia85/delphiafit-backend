@@ -23,7 +23,7 @@ from app.routers import register as register_router
 from app.routers.admin import analytics as admin_analytics
 from app.routers.admin import announcements as admin_announcements
 from app.routers.admin import dashboard as admin_dashboard
-from afrom fastapi import FastAPI
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 # ⭐ ROUTERS
