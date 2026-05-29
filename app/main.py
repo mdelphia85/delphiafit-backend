@@ -3,15 +3,16 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.responses import RedirectResponse   # ⭐ REQUIRED IMPORT
 
-# ⭐ Custom middleware to force HTTPS on Railway
-class ForceHTTPSMiddleware(BaseHTTPMiddleware):
+# ⭐ Fix scheme BEFORE Starlette generates redirects
+class FixProxySchemeMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        # If Railway forwarded the request as HTTP, fix it
-        if request.headers.get("x-forwarded-proto") == "http":
-            url = request.url.replace(scheme="https")
-            return RedirectResponse(url=url, status_code=307)
+        # Railway terminates TLS and forwards as HTTP
+        # but sets x-forwarded-proto: https
+        if request.headers.get("x-forwarded-proto") == "https":
+            scope = request.scope
+            scope["scheme"] = "https"
+            request = Request(scope, request.receive)
         return await call_next(request)
 
 # ⭐ AUTH ROUTES
@@ -40,8 +41,8 @@ from app.routers import sports
 
 app = FastAPI()
 
-# ⭐ Add custom HTTPS fix
-app.add_middleware(ForceHTTPSMiddleware)
+# ⭐ THIS is the fix — not RedirectResponse
+app.add_middleware(FixProxySchemeMiddleware)
 
 # ⭐ CORS CONFIG
 origins = [
@@ -78,6 +79,5 @@ app.include_router(tactical_ems.router)
 app.include_router(tactical_police.router)
 app.include_router(tactical_military.router)
 
-# ⭐ DATABASE INIT
 from app.database.connection import Base, engine
 Base.metadata.create_all(bind=engine)
