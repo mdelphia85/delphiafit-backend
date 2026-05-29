@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 
 # ⭐ ROUTERS
 from app.routers import sports
@@ -42,6 +43,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ---------------------------------------------------------
+# ⭐ FORCE HTTPS (FIXES 307 → HTTP REDIRECT)
+# ---------------------------------------------------------
+app.add_middleware(HTTPSRedirectMiddleware)
 
 
 # ---------------------------------------------------------
