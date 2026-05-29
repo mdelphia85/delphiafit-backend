@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
+
+# ⭐ ADD THIS IMPORT (wherever you had it before)
+from app.middleware.fix_proxy_scheme import FixProxySchemeMiddleware  # adjust path if yours is different
 
 # ⭐ ROUTERS
 from app.routers import sports
@@ -19,12 +21,9 @@ from app.routers.tactical import ems as tactical_ems
 from app.routers.tactical import police as tactical_police
 from app.routers.tactical import military as tactical_military
 
-# ⭐ DATABASE
 from app.database.connection import Base, engine
 
-
 app = FastAPI()
-
 
 # ---------------------------------------------------------
 # ⭐ CORS MUST BE FIRST
@@ -44,11 +43,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ---------------------------------------------------------
-# ⭐ FORCE HTTPS (FIXES 307 → HTTP REDIRECT)
-# ---------------------------------------------------------
-app.add_middleware(HTTPSRedirectMiddleware)
-
+# ⭐ THIS is the only added line
+app.add_middleware(FixProxySchemeMiddleware)
 
 # ---------------------------------------------------------
 # ⭐ ROOT
@@ -57,6 +53,7 @@ app.add_middleware(HTTPSRedirectMiddleware)
 def root():
     return {"status": "backend is running"}
 
+# (rest of your file unchanged)
 
 # ---------------------------------------------------------
 # ⭐ ROUTERS
