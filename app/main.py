@@ -1,28 +1,3 @@
-# force rebuild
-
-from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
-from starlette.middleware.base import BaseHTTPMiddleware
-
-# ⭐ Fix scheme BEFORE Starlette generates redirects
-class FixProxySchemeMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        # Railway terminates TLS and forwards as HTTP
-        # but sets x-forwarded-proto: https
-        if request.headers.get("x-forwarded-proto") == "https":
-            scope = request.scope
-            scope["scheme"] = "https"
-            request = Request(scope, request.receive)
-        return await call_next(request)
-
-# ⭐ AUTH ROUTES
-from app.routers import auth as auth_router
-from app.routers import register as register_router
-
-# ⭐ ADMIN ROUTERS
-from app.routers.admin import analytics as admin_analytics
-from app.routers.admin import announcements as admin_announcements
-from app.routers.admin import dashboard as admin_dashboard
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -46,15 +21,12 @@ from app.routers.tactical import military as tactical_military
 # ⭐ DATABASE
 from app.database.connection import Base, engine
 
-# ⭐ MIDDLEWARE
-from app.middleware.proxy_fix import FixProxySchemeMiddleware
-
 
 app = FastAPI()
 
 
 # ---------------------------------------------------------
-# ⭐ CORS MUST BE FIRST — ALWAYS
+# ⭐ CORS MUST BE FIRST
 # ---------------------------------------------------------
 origins = [
     "http://localhost:5173",
@@ -70,12 +42,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-# ---------------------------------------------------------
-# ⭐ Proxy fix MUST come AFTER CORS
-# ---------------------------------------------------------
-app.add_middleware(FixProxySchemeMiddleware)
 
 
 # ---------------------------------------------------------
