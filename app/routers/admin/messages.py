@@ -2,12 +2,16 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.database.connection import get_db
+from app.routers.admin.auth import verify_admin   # <-- ADD THIS
 
 router = APIRouter(prefix="/admin/messages", tags=["Admin Messages"])
 
 
 @router.get("/")
-def get_messages(db: Session = Depends(get_db)):
+def get_messages(
+    db: Session = Depends(get_db),
+    admin=Depends(verify_admin)   # <-- PROTECT ROUTE
+):
     try:
         from app.models.messages import Message
     except:
@@ -21,7 +25,11 @@ def get_messages(db: Session = Depends(get_db)):
 
 
 @router.patch("/{message_id}/read")
-def mark_message_read(message_id: int, db: Session = Depends(get_db)):
+def mark_message_read(
+    message_id: int,
+    db: Session = Depends(get_db),
+    admin=Depends(verify_admin)   # <-- PROTECT ROUTE
+):
     from app.models.messages import Message
 
     msg = (
@@ -41,7 +49,11 @@ def mark_message_read(message_id: int, db: Session = Depends(get_db)):
 
 
 @router.delete("/{message_id}")
-def delete_message(message_id: int, db: Session = Depends(get_db)):
+def delete_message(
+    message_id: int,
+    db: Session = Depends(get_db),
+    admin=Depends(verify_admin)   # <-- PROTECT ROUTE
+):
     from app.models.messages import Message
 
     msg = (

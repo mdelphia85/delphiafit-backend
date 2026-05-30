@@ -1,21 +1,19 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 
 from app.database.connection import get_db
 from app.models.user import User
 from app.models.announcements import Announcement
-
-# Optional models:
-# from app.models.messages import Message
-# from app.models.logs import LogEntry
+from app.routers.admin.auth import verify_admin   # <-- ADD THIS
 
 router = APIRouter(prefix="/admin/dashboard", tags=["Admin Dashboard"])
 
 
 @router.get("/")
 def get_admin_dashboard(
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    admin=Depends(verify_admin)   # <-- PROTECT ROUTE
 ):
     today = datetime.utcnow().date()
     week_ago = today - timedelta(days=7)
