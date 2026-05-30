@@ -8,6 +8,8 @@ from app.routers import sports
 from app.routers import auth as auth_router
 from app.routers import users as users_router
 
+# ADMIN ROUTERS
+from app.routers.admin import auth as admin_auth          # <-- ADDED
 from app.routers.admin import analytics as admin_analytics
 from app.routers.admin import announcements as admin_announcements
 from app.routers.admin import dashboard as admin_dashboard
@@ -15,6 +17,7 @@ from app.routers.admin import logs as admin_logs
 from app.routers.admin import messages as admin_messages
 from app.routers.admin import users as admin_users
 
+# TACTICAL ROUTERS
 from app.routers.tactical import firefighters as tactical_firefighters
 from app.routers.tactical import ems as tactical_ems
 from app.routers.tactical import police as tactical_police
@@ -55,10 +58,13 @@ def root():
 # ---------------------------------------------------------
 # ROUTERS
 # ---------------------------------------------------------
+# Public
 app.include_router(sports.router, prefix="/sports")
 app.include_router(auth_router.router, prefix="/auth")
 app.include_router(users_router.router)
 
+# Admin
+app.include_router(admin_auth.router)                     # <-- ADDED
 app.include_router(admin_analytics.router)
 app.include_router(admin_announcements.router)
 app.include_router(admin_dashboard.router)
@@ -66,6 +72,7 @@ app.include_router(admin_logs.router)
 app.include_router(admin_messages.router)
 app.include_router(admin_users.router)
 
+# Tactical
 app.include_router(tactical_firefighters.router)
 app.include_router(tactical_ems.router)
 app.include_router(tactical_police.router)
