@@ -2,7 +2,7 @@ import random
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
 
-router = APIRouter(prefix="/sports", tags=["Sports"])
+router = APIRouter(tags=["Sports"])
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
 # ---------------------------------------------------------
@@ -2994,21 +2994,6 @@ SPORTS = {
     },
 },
 },
-# app/routers/sports.py
-
-from fastapi import APIRouter, Depends, HTTPException
-from fastapi.security import OAuth2PasswordBearer
-import random
-
-# IMPORTANT: make sure this import points to your actual SPORTS dict
-from app.data.sports import SPORTS
-
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
-
-# FIXED: no prefix here — prefix belongs ONLY in main.py
-router = APIRouter()
-
-
 # ---------------------------------------------------------
 # Helper functions
 # ---------------------------------------------------------
