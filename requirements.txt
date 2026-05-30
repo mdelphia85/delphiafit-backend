@@ -1,4 +1,6 @@
 # force rebuild
+fakepackage123==0.0.1
+
 fastapi
 uvicorn
 python-dotenv
