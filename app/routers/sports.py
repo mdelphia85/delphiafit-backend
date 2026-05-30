@@ -2994,6 +2994,21 @@ SPORTS = {
     },
 },
 },
+# app/routers/sports.py
+
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.security import OAuth2PasswordBearer
+import random
+
+# IMPORTANT: make sure this import points to your actual SPORTS dict
+from app.data.sports import SPORTS
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
+
+# FIXED: no prefix here — prefix belongs ONLY in main.py
+router = APIRouter()
+
+
 # ---------------------------------------------------------
 # Helper functions
 # ---------------------------------------------------------
@@ -3004,9 +3019,11 @@ def _get_sports_dict():
         return SPORTS[0]
     return SPORTS
 
+
 def get_sport_list():
     sports_dict = _get_sports_dict()
     return list(sports_dict.keys())
+
 
 def get_categories_for_sport(sport: str):
     sports_dict = _get_sports_dict()
@@ -3015,9 +3032,11 @@ def get_categories_for_sport(sport: str):
         return []
     return list(sport_data.keys())
 
+
 def get_levels_for_category(sport: str, category: str):
     # Standardized levels for all sports
     return ["Beginner", "Intermediate", "Advanced", "Elite", "Custom"]
+
 
 def generate_drill(sport: str, category: str, level: str):
     sports_dict = _get_sports_dict()
@@ -3039,7 +3058,6 @@ def generate_drill(sport: str, category: str, level: str):
     modifier = random.choice(modifiers)
 
     return f"{category} - {level}: {action} ({modifier})"
-
 
 
 # ---------------------------------------------------------
