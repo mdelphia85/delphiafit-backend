@@ -76,3 +76,20 @@ def get_me(
         "id": user.id,
         "email": user.email
     }
+
+@router.post("/admin/login")
+def admin_login(user: UserLogin, db: Session = Depends(get_db)):
+    db_user = db.query(User).filter(User.email == user.email).first()
+
+    if not db_user or not verify_password(user.password, db_user.hashed_password):
+        raise HTTPException(401, "Invalid admin credentials")
+
+    if not db_user.is_admin:
+        raise HTTPException(403, "Not authorized")
+
+    token = create_access_token({"sub": db_user.email, "admin": True})
+
+    return {
+        "access_token": token,
+        "token_type": "bearer"
+    }
