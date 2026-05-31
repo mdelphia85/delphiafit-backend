@@ -8,8 +8,6 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
-    password = Column(String, nullable=False)          # <-- rename hashed_password → password
-    is_admin = Column(Boolean, default=False)          # <-- add this
-    created_at = Column(DateTime(timezone=True), server_default=func.now())  # optional but recommended
-
-
+    hashed_password = Column(String, nullable=False)  # unified name
+    is_admin = Column(Boolean, default=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
