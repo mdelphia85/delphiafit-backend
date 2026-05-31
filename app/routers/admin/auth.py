@@ -1,48 +1,88 @@
-from fastapi import APIRouter, Depends, HTTPException
-from fastapi.security import OAuth2PasswordRequestForm
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from jose import jwt, JWTError
+from pydantic import BaseModel
 
 from app.database.connection import get_db
 from app.models.user import User
-from app.utils.security import verify_password, create_access_token, SECRET_KEY, ALGORITHM
+from app.auth.hashing import verify_password
+from app.auth.jwt_handler import create_access_token, decode_access_token
 
 router = APIRouter(prefix="/admin", tags=["Admin Auth"])
 
+
+# -----------------------------
+# JSON Login Model
+# -----------------------------
+class AdminLogin(BaseModel):
+    email: str
+    password: str
+
+
+# -----------------------------
+# POST /admin/login
+# Accepts JSON (matches frontend)
+# -----------------------------
 @router.post("/login")
-def admin_login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == form_data.username).first()
+def admin_login(data: AdminLogin, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == data.email).first()
 
     if not user:
-        raise HTTPException(status_code=400, detail="Invalid credentials")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid credentials"
+        )
 
-    if not verify_password(form_data.password, user.password):
-        raise HTTPException(status_code=400, detail="Invalid credentials")
+    # Verify password using your existing hashing system
+    if not verify_password(data.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid credentials"
+        )
 
-    if not user.is_admin:
-        raise HTTPException(status_code=403, detail="Not an admin")
-
-    token = create_access_token({"sub": user.email, "is_admin": True})
-    return {"access_token": token, "token_type": "bearer"}
-from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
-
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/admin/login")
-
-def verify_admin(token: str = Depends(oauth2_scheme)):
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-
-        if not payload.get("is_admin"):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Admin access required"
-            )
-
-        return payload
-
-    except JWTError:
+    # Require admin flag
+    if not getattr(user, "is_admin", False):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Invalid or expired token"
+            detail="Not an admin"
         )
+
+    # Create token with admin flag
+    token = create_access_token({"sub": user.email, "is_admin": True})
+
+    return {
+        "access_token": token,
+        "token_type": "bearer"
+    }
+
+
+# -----------------------------
+# GET /admin/me
+# Validates admin token
+# -----------------------------
+@router.get("/me")
+def admin_me(
+    token_data: dict = Depends(decode_access_token),
+    db: Session = Depends(get_db)
+):
+    email = token_data.get("sub")
+    is_admin = token_data.get("is_admin")
+
+    if not email or not is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid admin token"
+        )
+
+    user = db.query(User).filter(User.email == email).first()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Admin not found"
+        )
+
+    return {
+        "id": user.id,
+        "email": user.email,
+        "name": user.name
+    }
