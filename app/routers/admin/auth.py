@@ -32,21 +32,18 @@ def admin_login(data: AdminLogin, db: Session = Depends(get_db)):
             detail="Invalid credentials"
         )
 
-    # Verify password using your existing hashing system
     if not verify_password(data.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid credentials"
         )
 
-    # Require admin flag
     if not getattr(user, "is_admin", False):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not an admin"
         )
 
-    # Create token with admin flag
     token = create_access_token({"sub": user.email, "is_admin": True})
 
     return {
@@ -86,3 +83,17 @@ def admin_me(
         "email": user.email,
         "name": user.name
     }
+
+
+# -----------------------------
+# verify_admin dependency
+# Used by all admin-protected routes
+# -----------------------------
+def verify_admin(token_data: dict = Depends(decode_access_token)):
+    if not token_data.get("is_admin"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required"
+        )
+
+    return token_data
