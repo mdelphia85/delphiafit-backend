@@ -16,7 +16,6 @@ class AdminLogin(BaseModel):
     email: str
     password: str
 
-
 # -----------------------------
 # POST /admin/login
 # -----------------------------
@@ -44,7 +43,6 @@ def admin_login(data: AdminLogin, db: Session = Depends(get_db)):
         "access_token": token,
         "token_type": "bearer"
     }
-
 
 # -----------------------------
 # GET /admin/me
@@ -78,7 +76,6 @@ def admin_me(
         "email": user.email,
         "name": user.name
     }
-
 
 # -----------------------------
 # Admin-only dependency
