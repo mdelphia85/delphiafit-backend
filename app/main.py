@@ -29,7 +29,8 @@ from app.database.connection import Base, engine
 # ---------------------------------------------------------
 # APP INIT
 # ---------------------------------------------------------
-app = FastAPI()
+app = FastAPI(redirect_slashes=False)
+
 
 # ---------------------------------------------------------
 # CORS

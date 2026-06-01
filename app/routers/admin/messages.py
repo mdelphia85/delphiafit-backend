@@ -7,7 +7,7 @@ from app.routers.admin.auth import verify_admin   # <-- ADD THIS
 router = APIRouter(prefix="/admin/messages", tags=["Admin Messages"])
 
 
-@router.get("/")
+@router.get("")
 def get_messages(
     db: Session = Depends(get_db),
     admin=Depends(verify_admin)   # <-- PROTECT ROUTE

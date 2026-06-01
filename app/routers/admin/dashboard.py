@@ -10,7 +10,7 @@ from app.routers.admin.auth import verify_admin   # <-- ADD THIS
 router = APIRouter(prefix="/admin/dashboard", tags=["Admin Dashboard"])
 
 
-@router.get("/")
+@router.get("")
 def get_admin_dashboard(
     db: Session = Depends(get_db),
     admin=Depends(verify_admin)   # <-- PROTECT ROUTE

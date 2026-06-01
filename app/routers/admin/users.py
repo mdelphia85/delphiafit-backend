@@ -8,7 +8,7 @@ from app.routers.admin.auth import verify_admin   # <-- ADD THIS
 router = APIRouter(prefix="/admin/users", tags=["Admin Users"])
 
 
-@router.get("/")
+@router.get("")
 def get_all_users(
     db: Session = Depends(get_db),
     admin=Depends(verify_admin)   # <-- PROTECT ROUTE

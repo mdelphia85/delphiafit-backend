@@ -12,7 +12,7 @@ router = APIRouter(prefix="/admin/announcements", tags=["Admin Announcements"])
 # -----------------------------
 # GET ALL ANNOUNCEMENTS
 # -----------------------------
-@router.get("/")
+@router.get("")
 def get_announcements(
     db: Session = Depends(get_db),
     admin=Depends(verify_admin)   # <-- PROTECT ROUTE
