@@ -22,6 +22,8 @@ class AdminLogin(BaseModel):
 # -----------------------------
 @router.post("/login")
 def admin_login(data: AdminLogin, db: Session = Depends(get_db)):
+    print("ADMIN LOGIN ROUTE HIT")  # TEMP DEBUG
+
     user = db.query(User).filter(User.email == data.email).first()
 
     if not user or not verify_password(data.password, user.hashed_password):
@@ -52,6 +54,8 @@ def admin_me(
     token_data: dict = Depends(decode_access_token),
     db: Session = Depends(get_db)
 ):
+    print("ADMIN ME ROUTE HIT")  # TEMP DEBUG
+
     email = token_data.get("sub")
     is_admin = token_data.get("is_admin")
 
@@ -80,6 +84,8 @@ def admin_me(
 # Admin-only dependency
 # -----------------------------
 def verify_admin(token_data: dict = Depends(decode_access_token)):
+    print("VERIFY ADMIN DEPENDENCY HIT")  # TEMP DEBUG
+
     if not token_data.get("is_admin"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
