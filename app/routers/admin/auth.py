@@ -1,5 +1,3 @@
-# force rebuild
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
@@ -17,6 +15,7 @@ router = APIRouter(prefix="/admin", tags=["Admin Auth"])
 class AdminLogin(BaseModel):
     email: str
     password: str
+
 
 # -----------------------------
 # POST /admin/login
@@ -43,6 +42,7 @@ def admin_login(data: AdminLogin, db: Session = Depends(get_db)):
         "access_token": token,
         "token_type": "bearer"
     }
+
 
 # -----------------------------
 # GET /admin/me
@@ -75,6 +75,7 @@ def admin_me(
         "name": user.name
     }
 
+
 # -----------------------------
 # Admin-only dependency
 # -----------------------------
@@ -85,6 +86,3 @@ def verify_admin(token_data: dict = Depends(decode_access_token)):
             detail="Admin access required"
         )
     return token_data
-    
-    
-    
