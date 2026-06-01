@@ -41,3 +41,4 @@ def decode_access_token(token: str) -> dict:
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token"
         )
+    print("DECODE FUNCTION RAN")
