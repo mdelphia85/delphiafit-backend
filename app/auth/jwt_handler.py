@@ -1,3 +1,5 @@
+# force rebuild 3
+
 from datetime import datetime, timedelta
 from jose import jwt, JWTError
 from fastapi import HTTPException, status
@@ -29,6 +31,7 @@ def create_access_token(data: dict) -> str:
 # DECODE ACCESS TOKEN
 # -----------------------------
 def decode_access_token(token: str) -> dict:
+    print("DECODE FUNCTION RAN")
     """
     Decodes a JWT and returns the payload.
     Raises an HTTPException if the token is invalid or expired.
@@ -41,4 +44,4 @@ def decode_access_token(token: str) -> dict:
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token"
         )
-    print("DECODE FUNCTION RAN")
+    
