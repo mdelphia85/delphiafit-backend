@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
-from app.database import get_db
+from app.database.connection import get_db
+
 
 router = APIRouter(
     prefix="/admin",
