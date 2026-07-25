@@ -9,7 +9,9 @@ from app.auth.jwt_handler import create_access_token, decode_access_token
 
 router = APIRouter(tags=["Auth"])
 
+# ---------------------------------------------------------
 # REGISTER
+# ---------------------------------------------------------
 @router.post("/register", response_model=UserResponse)
 def register(user: UserCreate, db: Session = Depends(get_db)):
     existing = db.query(User).filter(User.email == user.email).first()
@@ -25,14 +27,15 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
         hashed_password=hash_password(user.password)
     )
 
-
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
 
     return new_user
 
-# LOGIN
+# ---------------------------------------------------------
+# LOGIN (PUBLIC)
+# ---------------------------------------------------------
 @router.post("/login")
 def login(user: UserLogin, db: Session = Depends(get_db)):
     db_user = db.query(User).filter(User.email == user.email).first()
@@ -50,7 +53,9 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
         "token_type": "bearer"
     }
 
-# AUTH ME
+# ---------------------------------------------------------
+# AUTH ME (PUBLIC)
+# ---------------------------------------------------------
 @router.get("/me")
 def get_me(
     token_data: dict = Depends(decode_access_token),
@@ -76,3 +81,10 @@ def get_me(
         "id": user.id,
         "email": user.email
     }
+
+# ---------------------------------------------------------
+# REMOVED: OLD /admin/login ROUTE
+# ---------------------------------------------------------
+# The admin login now lives ONLY in:
+# app/routers/admin/auth.py
+# and correctly returns {"is_admin": True}

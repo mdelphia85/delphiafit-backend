@@ -1,4 +1,5 @@
-# force rebuild
+# force rebuild 10
+
 fastapi
 uvicorn
 python-dotenv
@@ -11,4 +12,5 @@ bcrypt==4.0.1
 python-jose[cryptography]
 python-multipart
 # rebuild-trigger
+# test rebuild
 

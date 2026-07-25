@@ -4,6 +4,7 @@ from datetime import datetime
 
 from app.database.connection import get_db
 from app.models.announcements import Announcement
+from app.routers.admin.auth import verify_admin   # <-- ADD THIS
 
 router = APIRouter(prefix="/admin/announcements", tags=["Admin Announcements"])
 
@@ -11,9 +12,10 @@ router = APIRouter(prefix="/admin/announcements", tags=["Admin Announcements"])
 # -----------------------------
 # GET ALL ANNOUNCEMENTS
 # -----------------------------
-@router.get("/")
+@router.get("")
 def get_announcements(
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    admin=Depends(verify_admin)   # <-- PROTECT ROUTE
 ):
     announcements = (
         db.query(Announcement)
@@ -29,7 +31,8 @@ def get_announcements(
 @router.post("/")
 def create_announcement(
     data: dict,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    admin=Depends(verify_admin)   # <-- PROTECT ROUTE
 ):
     title = data.get("title")
     message = data.get("message")
@@ -56,7 +59,8 @@ def create_announcement(
 @router.delete("/{announcement_id}")
 def delete_announcement(
     announcement_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    admin=Depends(verify_admin)   # <-- PROTECT ROUTE
 ):
     announcement = (
         db.query(Announcement)

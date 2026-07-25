@@ -1,12 +1,16 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from app.database.connection import get_db
+from app.routers.admin.auth import verify_admin   # <-- ADD THIS
 
 router = APIRouter(prefix="/admin/logs", tags=["Admin Logs"])
 
 
-@router.get("/")
-def get_all_logs(db: Session = Depends(get_db)):
+@router.get("")
+def get_all_logs(
+    db: Session = Depends(get_db),
+    admin=Depends(verify_admin)   # <-- PROTECT ROUTE
+):
     logs = {}
 
     # Workout Logs

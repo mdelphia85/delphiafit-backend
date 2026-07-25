@@ -3,12 +3,16 @@ from sqlalchemy.orm import Session
 
 from app.database.connection import get_db
 from app.models.user import User
+from app.routers.admin.auth import verify_admin   # <-- ADD THIS
 
 router = APIRouter(prefix="/admin/users", tags=["Admin Users"])
 
 
-@router.get("/")
-def get_all_users(db: Session = Depends(get_db)):
+@router.get("")
+def get_all_users(
+    db: Session = Depends(get_db),
+    admin=Depends(verify_admin)   # <-- PROTECT ROUTE
+):
     return (
         db.query(User)
         .order_by(User.created_at.desc())
@@ -17,7 +21,11 @@ def get_all_users(db: Session = Depends(get_db)):
 
 
 @router.get("/{user_id}")
-def get_user(user_id: int, db: Session = Depends(get_db)):
+def get_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    admin=Depends(verify_admin)   # <-- PROTECT ROUTE
+):
     user = (
         db.query(User)
         .filter(User.id == user_id)
@@ -31,7 +39,11 @@ def get_user(user_id: int, db: Session = Depends(get_db)):
 
 
 @router.patch("/{user_id}/reset-streak")
-def reset_streak(user_id: int, db: Session = Depends(get_db)):
+def reset_streak(
+    user_id: int,
+    db: Session = Depends(get_db),
+    admin=Depends(verify_admin)   # <-- PROTECT ROUTE
+):
     user = (
         db.query(User)
         .filter(User.id == user_id)
@@ -49,7 +61,11 @@ def reset_streak(user_id: int, db: Session = Depends(get_db)):
 
 
 @router.patch("/{user_id}/admin")
-def toggle_admin(user_id: int, db: Session = Depends(get_db)):
+def toggle_admin(
+    user_id: int,
+    db: Session = Depends(get_db),
+    admin=Depends(verify_admin)   # <-- PROTECT ROUTE
+):
     user = (
         db.query(User)
         .filter(User.id == user_id)
@@ -67,7 +83,11 @@ def toggle_admin(user_id: int, db: Session = Depends(get_db)):
 
 
 @router.delete("/{user_id}")
-def delete_user(user_id: int, db: Session = Depends(get_db)):
+def delete_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    admin=Depends(verify_admin)   # <-- PROTECT ROUTE
+):
     user = (
         db.query(User)
         .filter(User.id == user_id)
