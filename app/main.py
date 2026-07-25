@@ -1,9 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
 # ---------------------------------------------------------
 # IMPORTS
 # ---------------------------------------------------------
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
 from app.routers import sports
 from app.routers import auth as auth_router
 from app.routers import users as users_router
@@ -14,6 +16,7 @@ from app.routers.admin import dashboard as admin_dashboard
 from app.routers.admin import logs as admin_logs
 from app.routers.admin import messages as admin_messages
 from app.routers.admin import users as admin_users
+from app.routers.admin import config as admin_config   # ⭐ NEW
 
 from app.routers.tactical import firefighters as tactical_firefighters
 from app.routers.tactical import ems as tactical_ems
@@ -65,6 +68,7 @@ app.include_router(admin_dashboard.router)
 app.include_router(admin_logs.router)
 app.include_router(admin_messages.router)
 app.include_router(admin_users.router)
+app.include_router(admin_config.router)   # ⭐ NEW
 
 app.include_router(tactical_firefighters.router)
 app.include_router(tactical_ems.router)
