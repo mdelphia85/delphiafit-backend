@@ -1,94 +1,182 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-print("MAIN FILE LOADED")
+# ---------------------------
+# Import ALL V2 routers
+# ---------------------------
 
-# ---------------------------------------------------------
-# IMPORTS
-# ---------------------------------------------------------
-from app.routers import sports
-from app.routers import auth as auth_router
-from app.routers import users as users_router
+from app.routers import (
+    workout_log,
+    daily_log,
+    activity,
+    body_metrics,
+    hydration,
+    sleep,
+    weight,
+    strength,
+    sports_performance,
 
-# ⭐ NEW — Workout router
-from app.routers import workout_log
+    # Fitness + Nutrition
+    nutrition,
+    meals,
+    macros,
+    goals,
+    recipes,
+    pr,
+    periodization,
+    rep_logs,
 
-# ADMIN ROUTERS
-from app.routers.admin import auth as admin_auth
-from app.routers.admin import analytics as admin_analytics
-from app.routers.admin import announcements as admin_announcements
-from app.routers.admin import dashboard as admin_dashboard
-from app.routers.admin import logs as admin_logs
-from app.routers.admin import messages as admin_messages
-from app.routers.admin import users as admin_users
-from app.routers.admin import config as admin_config
+    # Social + Community
+    social,
 
-# TACTICAL ROUTERS
-from app.routers.tactical import firefighters as tactical_firefighters
-from app.routers.tactical import ems as tactical_ems
-from app.routers.tactical import police as tactical_police
-from app.routers.tactical import military as tactical_military
+    # AI Systems
+    ai,
+    smart_mode,
+    weekly_plan,
+    form_scoring,
+    velocity,
+    live,
 
-from app.database.connection import Base, engine
+    # Coaching + Team
+    coach,
+    team,
+    invite,
+    plan,
+    drill,
 
-# ---------------------------------------------------------
-# APP INIT
-# ---------------------------------------------------------
-app = FastAPI(redirect_slashes=False)
+    # Competitions
+    competition,
+    tournament,
+    ladder,
+    season,
+    federation,
 
-# ---------------------------------------------------------
+    # Creator Marketplace
+    creator,
+
+    # Hardware
+    hardware,
+
+    # Enterprise
+    org,
+
+    # Medical
+    medical,
+    medical_recovery,
+
+    # Tactical
+    academy,
+    sof,
+    swat,
+    k9,
+    search_rescue,
+    disaster,
+    hazmat,
+    wildland,
+    maritime,
+    aviation,
+    scenario,
+    loadout,
+    instructor,
+    mission_replay,
+    certification,
+    unit
+)
+
+app = FastAPI(title="DelphiaFit Backend V2")
+
+# ---------------------------
 # CORS
-# ---------------------------------------------------------
-origins = [
-    "http://localhost:5173",
-    "https://delphiafit-web.vercel.app",
-    "https://www.delphiafit.com",
-    "https://delphiafit.com",
-]
-
+# ---------------------------
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],  # update later for production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# ---------------------------------------------------------
-# ROOT
-# ---------------------------------------------------------
-@app.get("/")
-def root():
-    return {"status": "backend is running"}
+# ---------------------------
+# Register ALL routers
+# ---------------------------
 
-# ---------------------------------------------------------
-# ROUTERS
-# ---------------------------------------------------------
-# Public
-app.include_router(sports.router, prefix="/sports")
-app.include_router(auth_router.router, prefix="/auth")
-app.include_router(users_router.router)
-
-# ⭐ Include Workout Router
 app.include_router(workout_log.router)
+app.include_router(daily_log.router)
+app.include_router(activity.router)
+app.include_router(body_metrics.router)
+app.include_router(hydration.router)
+app.include_router(sleep.router)
+app.include_router(weight.router)
+app.include_router(strength.router)
+app.include_router(sports_performance.router)
 
-# Admin
-app.include_router(admin_auth.router)
-app.include_router(admin_analytics.router)
-app.include_router(admin_announcements.router)
-app.include_router(admin_dashboard.router)
-app.include_router(admin_logs.router)
-app.include_router(admin_messages.router)
-app.include_router(admin_users.router)
-app.include_router(admin_config.router)
+# Fitness + Nutrition
+app.include_router(nutrition.router)
+app.include_router(meals.router)
+app.include_router(macros.router)
+app.include_router(goals.router)
+app.include_router(recipes.router)
+app.include_router(pr.router)
+app.include_router(periodization.router)
+app.include_router(rep_logs.router)
+
+# Social
+app.include_router(social.router)
+
+# AI
+app.include_router(ai.router)
+app.include_router(smart_mode.router)
+app.include_router(weekly_plan.router)
+app.include_router(form_scoring.router)
+app.include_router(velocity.router)
+app.include_router(live.router)
+
+# Coaching + Team
+app.include_router(coach.router)
+app.include_router(team.router)
+app.include_router(invite.router)
+app.include_router(plan.router)
+app.include_router(drill.router)
+
+# Competitions
+app.include_router(competition.router)
+app.include_router(tournament.router)
+app.include_router(ladder.router)
+app.include_router(season.router)
+app.include_router(federation.router)
+
+# Creator Marketplace
+app.include_router(creator.router)
+
+# Hardware
+app.include_router(hardware.router)
+
+# Enterprise
+app.include_router(org.router)
+
+# Medical
+app.include_router(medical.router)
+app.include_router(medical_recovery.router)
 
 # Tactical
-app.include_router(tactical_firefighters.router)
-app.include_router(tactical_ems.router)
-app.include_router(tactical_police.router)
-app.include_router(tactical_military.router)
+app.include_router(academy.router)
+app.include_router(sof.router)
+app.include_router(swat.router)
+app.include_router(k9.router)
+app.include_router(search_rescue.router)
+app.include_router(disaster.router)
+app.include_router(hazmat.router)
+app.include_router(wildland.router)
+app.include_router(maritime.router)
+app.include_router(aviation.router)
+app.include_router(scenario.router)
+app.include_router(loadout.router)
+app.include_router(instructor.router)
+app.include_router(mission_replay.router)
+app.include_router(certification.router)
+app.include_router(unit.router)
 
-# ---------------------------------------------------------
-# DATABASE INIT
-# ---------------------------------------------------------
-Base.metadata.create_all(bind=engine)
+
+@app.get("/health")
+def health():
+    return {"status": "ok", "version": "V2"}
