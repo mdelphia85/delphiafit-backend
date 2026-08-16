@@ -1,88 +1,43 @@
+from typing import List, Optional
 from sqlalchemy.orm import Session
-from datetime import datetime
 
-from app.models.swat import SWATPipeline, SWATDrill, SWATOperator, SWATEvaluation
+from app.models.swat import SWAT
 
 
-class SWATCRUD:
+def create_swat(db: Session, data: dict) -> SWAT:
+    swat = SWAT(**data)
+    db.add(swat)
+    db.commit()
+    db.refresh(swat)
+    return swat
 
-    # ---------------------------------------------------------
-    # Pipelines
-    # ---------------------------------------------------------
-    def create_pipeline(self, db: Session, data: dict):
-        pipeline = SWATPipeline(
-            name=data["name"],
-            agency=data["agency"],
-            description=data.get("description"),
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
-        )
-        db.add(pipeline)
-        db.commit()
-        db.refresh(pipeline)
-        return pipeline
 
-    def list_pipelines(self, db: Session):
-        return db.query(SWATPipeline).filter(SWATPipeline.active == True).all()
+def get_swat(db: Session, swat_id: int) -> Optional[SWAT]:
+    return db.query(SWAT).filter(SWAT.id == swat_id).first()
 
-    # ---------------------------------------------------------
-    # Drills
-    # ---------------------------------------------------------
-    def add_drill(self, db: Session, data: dict):
-        drill = SWATDrill(
-            pipeline_id=data["pipeline_id"],
-            name=data["name"],
-            drill_type=data["drill_type"],
-            standard=data.get("standard"),
-            description=data.get("description")
-        )
-        db.add(drill)
-        db.commit()
-        db.refresh(drill)
-        return drill
 
-    def list_drills(self, db: Session, pipeline_id: int):
-        return db.query(SWATDrill).filter(
-            SWATDrill.pipeline_id == pipeline_id
-        ).all()
+def get_swat_units(db: Session) -> List[SWAT]:
+    return db.query(SWAT).all()
 
-    # ---------------------------------------------------------
-    # Operators
-    # ---------------------------------------------------------
-    def add_operator(self, db: Session, data: dict):
-        operator = SWATOperator(
-            user_id=data["user_id"],
-            pipeline_id=data["pipeline_id"],
-            status="active"
-        )
-        db.add(operator)
-        db.commit()
-        db.refresh(operator)
-        return operator
 
-    def list_operators(self, db: Session, pipeline_id: int):
-        return db.query(SWATOperator).filter(
-            SWATOperator.pipeline_id == pipeline_id
-        ).all()
+def update_swat(db: Session, swat_id: int, data: dict) -> Optional[SWAT]:
+    swat = get_swat(db, swat_id)
+    if not swat:
+        return None
 
-    # ---------------------------------------------------------
-    # Evaluations
-    # ---------------------------------------------------------
-    def evaluate(self, db: Session, data: dict):
-        evaluation = SWATEvaluation(
-            operator_id=data["operator_id"],
-            drill_id=data["drill_id"],
-            score=data.get("score"),
-            passed=data.get("passed", False),
-            notes=data.get("notes"),
-            timestamp=datetime.utcnow()
-        )
-        db.add(evaluation)
-        db.commit()
-        db.refresh(evaluation)
-        return evaluation
+    for field, value in data.items():
+        setattr(swat, field, value)
 
-    def get_evaluations(self, db: Session, operator_id: int):
-        return db.query(SWATEvaluation).filter(
-            SWATEvaluation.operator_id == operator_id
-        ).all()
+    db.commit()
+    db.refresh(swat)
+    return swat
+
+
+def delete_swat(db: Session, swat_id: int) -> bool:
+    swat = get_swat(db, swat_id)
+    if not swat:
+        return False
+
+    db.delete(swat)
+    db.commit()
+    return True

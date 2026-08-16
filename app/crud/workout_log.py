@@ -1,29 +1,57 @@
+from typing import List, Optional
 from sqlalchemy.orm import Session
+from datetime import datetime
+
 from app.models.workout_log import WorkoutLog
-from app.schemas.workout_log import WorkoutLogCreate
+from app.schemas.workout_log import WorkoutLogCreate, WorkoutLogUpdate
 
-def create_workout_log(db: Session, workout: WorkoutLogCreate, user_id: int):
-    db_workout = WorkoutLog(
-        user_id=user_id,
-        mode=workout.mode,
-        duration_minutes=workout.duration_minutes,
 
-        # Manual mode fields
-        manual_name=workout.manual_name,
-        manual_notes=workout.manual_notes,
+def create_workout_log(db: Session, data: WorkoutLogCreate) -> WorkoutLog:
+    log = WorkoutLog(
+        user_id=data.user_id,
+        workout_type=data.workout_type,
+        duration=data.duration,
+        intensity=data.intensity,
+        notes=data.notes,
+        timestamp=data.timestamp or datetime.utcnow(),
+    )
+    db.add(log)
+    db.commit()
+    db.refresh(log)
+    return log
 
-        # Structured mode fields
-        workout_type=workout.workout_type,
-        weight_unit=workout.weight_unit,
-        weight_value=workout.weight_value,
 
-        # JSON fields
-        plan_json=workout.plan_json,
-        block_durations_json=workout.block_durations_json,
-        equipment_json=workout.equipment_json,
+def get_workout_log(db: Session, log_id: int) -> Optional[WorkoutLog]:
+    return db.query(WorkoutLog).filter(WorkoutLog.id == log_id).first()
+
+
+def get_workout_logs_for_user(db: Session, user_id: int) -> List[WorkoutLog]:
+    return (
+        db.query(WorkoutLog)
+        .filter(WorkoutLog.user_id == user_id)
+        .order_by(WorkoutLog.timestamp.desc())
+        .all()
     )
 
-    db.add(db_workout)
+
+def update_workout_log(db: Session, log_id: int, data: WorkoutLogUpdate) -> Optional[WorkoutLog]:
+    log = get_workout_log(db, log_id)
+    if not log:
+        return None
+
+    for field, value in data.dict(exclude_unset=True).items():
+        setattr(log, field, value)
+
     db.commit()
-    db.refresh(db_workout)
-    return db_workout
+    db.refresh(log)
+    return log
+
+
+def delete_workout_log(db: Session, log_id: int) -> bool:
+    log = get_workout_log(db, log_id)
+    if not log:
+        return False
+
+    db.delete(log)
+    db.commit()
+    return True

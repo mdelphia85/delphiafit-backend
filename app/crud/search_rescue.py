@@ -1,68 +1,43 @@
+from typing import List, Optional
 from sqlalchemy.orm import Session
-from datetime import datetime
 
-from app.models.search_rescue import SearchRescue, SARTeam, SARVictim
+from app.models.search_rescue import SearchRescue
 
 
-class SearchRescueCRUD:
+def create_search_rescue(db: Session, data: dict) -> SearchRescue:
+    sr = SearchRescue(**data)
+    db.add(sr)
+    db.commit()
+    db.refresh(sr)
+    return sr
 
-    # ---------------------------------------------------------
-    # Create Operation
-    # ---------------------------------------------------------
-    def create_operation(self, db: Session, data: dict):
-        op = SearchRescue(
-            operation_name=data["operation_name"],
-            operation_type=data["operation_type"],
-            location=data.get("location"),
-            commander_id=data["commander_id"],
-            notes=data.get("notes"),
-            started_at=datetime.utcnow()
-        )
-        db.add(op)
-        db.commit()
-        db.refresh(op)
-        return op
 
-    # ---------------------------------------------------------
-    # List Operations
-    # ---------------------------------------------------------
-    def list_operations(self, db: Session):
-        return db.query(SearchRescue).all()
+def get_search_rescue(db: Session, sr_id: int) -> Optional[SearchRescue]:
+    return db.query(SearchRescue).filter(SearchRescue.id == sr_id).first()
 
-    # ---------------------------------------------------------
-    # Add Team
-    # ---------------------------------------------------------
-    def add_team(self, db: Session, data: dict):
-        team = SARTeam(
-            operation_id=data["operation_id"],
-            team_name=data["team_name"],
-            members=data.get("members"),
-            specialty=data.get("specialty")
-        )
-        db.add(team)
-        db.commit()
-        db.refresh(team)
-        return team
 
-    # ---------------------------------------------------------
-    # Add Victim
-    # ---------------------------------------------------------
-    def add_victim(self, db: Session, data: dict):
-        victim = SARVictim(
-            operation_id=data["operation_id"],
-            name=data.get("name"),
-            condition=data.get("condition"),
-            found_at=data.get("found_at"),
-            extraction_time=data.get("extraction_time"),
-            notes=data.get("notes")
-        )
-        db.add(victim)
-        db.commit()
-        db.refresh(victim)
-        return victim
+def get_search_rescue_logs(db: Session) -> List[SearchRescue]:
+    return db.query(SearchRescue).all()
 
-    # ---------------------------------------------------------
-    # Get Operation Details
-    # ---------------------------------------------------------
-    def get_operation(self, db: Session, op_id: int):
-        return db.query(SearchRescue).filter(SearchRescue.id == op_id).first()
+
+def update_search_rescue(db: Session, sr_id: int, data: dict) -> Optional[SearchRescue]:
+    sr = get_search_rescue(db, sr_id)
+    if not sr:
+        return None
+
+    for field, value in data.items():
+        setattr(sr, field, value)
+
+    db.commit()
+    db.refresh(sr)
+    return sr
+
+
+def delete_search_rescue(db: Session, sr_id: int) -> bool:
+    sr = get_search_rescue(db, sr_id)
+    if not sr:
+        return False
+
+    db.delete(sr)
+    db.commit()
+    return True
