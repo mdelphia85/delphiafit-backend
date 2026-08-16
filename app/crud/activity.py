@@ -2,18 +2,18 @@ from typing import List, Optional
 from sqlalchemy.orm import Session
 from datetime import datetime
 
-from app.models.activity import Activity
-from app.schemas.activity import ActivityCreate, ActivityUpdate
+from app.models.activity import ActivityLog
+from app.schemas.activity import ActivityLogCreate, ActivityLogUpdate
 
 
-def create_activity(db: Session, data: ActivityCreate) -> Activity:
-    activity = Activity(
+def create_activity_log(db: Session, data: ActivityLogCreate) -> ActivityLog:
+    activity = ActivityLog(
         user_id=data.user_id,
         activity_type=data.activity_type,
-        duration=data.duration,
-        intensity=data.intensity,
+        duration_minutes=data.duration_minutes,
+        calories_burned=data.calories_burned,
         notes=data.notes,
-        timestamp=data.timestamp or datetime.utcnow(),
+        date=data.date or datetime.utcnow(),
     )
     db.add(activity)
     db.commit()
@@ -21,21 +21,21 @@ def create_activity(db: Session, data: ActivityCreate) -> Activity:
     return activity
 
 
-def get_activity(db: Session, activity_id: int) -> Optional[Activity]:
-    return db.query(Activity).filter(Activity.id == activity_id).first()
+def get_activity_log(db: Session, activity_id: int) -> Optional[ActivityLog]:
+    return db.query(ActivityLog).filter(ActivityLog.id == activity_id).first()
 
 
-def get_activities_for_user(db: Session, user_id: int) -> List[Activity]:
+def get_activity_logs(db: Session, user_id: int) -> List[ActivityLog]:
     return (
-        db.query(Activity)
-        .filter(Activity.user_id == user_id)
-        .order_by(Activity.timestamp.desc())
+        db.query(ActivityLog)
+        .filter(ActivityLog.user_id == user_id)
+        .order_by(ActivityLog.date.desc())
         .all()
     )
 
 
-def update_activity(db: Session, activity_id: int, data: ActivityUpdate) -> Optional[Activity]:
-    activity = get_activity(db, activity_id)
+def update_activity_log(db: Session, activity_id: int, data: ActivityLogUpdate) -> Optional[ActivityLog]:
+    activity = get_activity_log(db, activity_id)
     if not activity:
         return None
 
@@ -47,8 +47,8 @@ def update_activity(db: Session, activity_id: int, data: ActivityUpdate) -> Opti
     return activity
 
 
-def delete_activity(db: Session, activity_id: int) -> bool:
-    activity = get_activity(db, activity_id)
+def delete_activity_log(db: Session, activity_id: int) -> bool:
+    activity = get_activity_log(db, activity_id)
     if not activity:
         return False
 
