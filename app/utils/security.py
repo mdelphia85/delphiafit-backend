@@ -1,21 +1,9 @@
-from datetime import datetime, timedelta
-from jose import jwt
-from passlib.context import CryptContext
+from fastapi import Depends
+from app.auth.dependencies import get_current_user
 
-SECRET_KEY = "YOUR_ADMIN_SECRET_KEY"
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 hours
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-def hash_password(password: str):
-    return pwd_context.hash(password)
-
-def verify_password(plain: str, hashed: str):
-    return pwd_context.verify(plain, hashed)
-
-def create_access_token(data: dict, expires_delta: timedelta | None = None):
-    to_encode = data.copy()
-    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
-    to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+def get_current_user_id(user = Depends(get_current_user)) -> int | str | None:
+    """
+    Returns the authenticated user's ID from the JWT payload.
+    Assumes 'sub' in the token is the user ID.
+    """
+    return user.get("sub")
