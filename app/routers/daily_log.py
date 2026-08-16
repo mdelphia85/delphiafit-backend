@@ -6,7 +6,7 @@ from app.database.connection import get_db
 from app.utils.security import get_current_user_id
 
 from app.schemas.daily_log import DailyLogCreate, DailyLogRead
-from app.crud.daily_log import create_daily_log, get_daily_logs
+from app.crud.daily_log import create_daily_log, get_daily_log
 
 router = APIRouter(prefix="/daily-log", tags=["daily_log"])
 
@@ -19,7 +19,7 @@ def add_daily_log(
     return create_daily_log(db, user_id, payload)
 
 @router.get("/", response_model=List[DailyLogRead])
-def list_daily_logs(
+def list_daily_log(
     db: Session = Depends(get_db),
     user_id: int = Depends(get_current_user_id)
 ):
