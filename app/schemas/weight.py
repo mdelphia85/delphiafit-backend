@@ -1,11 +1,19 @@
 from pydantic import BaseModel
 from datetime import datetime
 
+
 class WeightLogCreate(BaseModel):
     user_id: int
     weight: float
     body_fat: float | None = None
     date: datetime
+
+
+class WeightLogUpdate(BaseModel):
+    weight: float | None = None
+    body_fat: float | None = None
+    date: datetime | None = None
+
 
 class WeightLogRead(BaseModel):
     id: int
@@ -15,4 +23,4 @@ class WeightLogRead(BaseModel):
     date: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True

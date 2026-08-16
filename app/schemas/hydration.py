@@ -1,13 +1,22 @@
 from pydantic import BaseModel
 from datetime import datetime
 
+
 class HydrationLogBase(BaseModel):
     amount_ml: int
     date: datetime
     notes: str | None = None
 
+
 class HydrationLogCreate(HydrationLogBase):
     user_id: int
+
+
+class HydrationLogUpdate(BaseModel):
+    amount_ml: int | None = None
+    date: datetime | None = None
+    notes: str | None = None
+
 
 class HydrationLogRead(HydrationLogBase):
     id: int
