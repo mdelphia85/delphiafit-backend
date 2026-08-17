@@ -9,11 +9,14 @@ from app.schemas.body_metrics import BodyMetricsCreate, BodyMetricsUpdate
 def create_body_metrics(db: Session, data: BodyMetricsCreate) -> BodyMetrics:
     metrics = BodyMetrics(
         user_id=data.user_id,
-        height=data.height,
-        weight=data.weight,
-        body_fat=data.body_fat,
-        muscle_mass=data.muscle_mass,
-        timestamp=data.timestamp or datetime.utcnow(),
+        height_cm=data.height_cm,
+        weight_kg=data.weight_kg,
+        body_fat_percent=data.body_fat_percent,
+        muscle_mass_kg=data.muscle_mass_kg,
+        waist_cm=data.waist_cm,
+        hips_cm=data.hips_cm,
+        chest_cm=data.chest_cm,
+        date=data.date,
     )
     db.add(metrics)
     db.commit()
@@ -29,7 +32,7 @@ def get_body_metrics_for_user(db: Session, user_id: int) -> List[BodyMetrics]:
     return (
         db.query(BodyMetrics)
         .filter(BodyMetrics.user_id == user_id)
-        .order_by(BodyMetrics.timestamp.desc())
+        .order_by(BodyMetrics.date.desc())
         .all()
     )
 
