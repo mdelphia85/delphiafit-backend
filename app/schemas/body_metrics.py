@@ -2,7 +2,7 @@ from pydantic import BaseModel
 from datetime import datetime
 
 
-class BodyMetricBase(BaseModel):
+class BodyMetricsBase(BaseModel):
     height_cm: float | None = None
     weight_kg: float | None = None
     body_fat_percent: float | None = None
@@ -13,11 +13,11 @@ class BodyMetricBase(BaseModel):
     date: datetime
 
 
-class BodyMetricCreate(BodyMetricBase):
+class BodyMetricsCreate(BodyMetricsBase):
     user_id: int
 
 
-class BodyMetricUpdate(BaseModel):
+class BodyMetricsUpdate(BaseModel):
     height_cm: float | None = None
     weight_kg: float | None = None
     body_fat_percent: float | None = None
@@ -28,9 +28,10 @@ class BodyMetricUpdate(BaseModel):
     date: datetime | None = None
 
 
-class BodyMetricRead(BodyMetricBase):
+class BodyMetricsRead(BodyMetricsBase):
     id: int
     user_id: int
 
-    class Config:
-        from_attributes = True
+    model_config = {
+        "from_attributes": True
+    }
