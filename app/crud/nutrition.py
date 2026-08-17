@@ -27,7 +27,7 @@ def get_nutrition_log(db: Session, log_id: int) -> Optional[NutritionLog]:
     return db.query(NutritionLog).filter(NutritionLog.id == log_id).first()
 
 
-def get_nutrition_logs_for_user(db: Session, user_id: int) -> List[NutritionLog]:
+def get_nutrition_logs(db: Session, user_id: int) -> List[NutritionLog]:
     return (
         db.query(NutritionLog)
         .filter(NutritionLog.user_id == user_id)
