@@ -3,9 +3,10 @@ from sqlalchemy.orm import Session
 from typing import List
 
 from app.database.connection import get_db
+from app.utils.security import get_current_user_id
+
 from app.schemas.goals import GoalCreate, GoalRead
 from app.crud.goals import create_goal, get_goals
-from app.utils.security import get_current_user_id
 
 router = APIRouter(prefix="/goals", tags=["goals"])
 
