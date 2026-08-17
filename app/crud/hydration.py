@@ -3,15 +3,15 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 
 from app.models.hydration import HydrationLog
-from app.schemas.hydration import HydrationCreate, HydrationUpdate
+from app.schemas.hydration import HydrationLogCreate, HydrationLogUpdate
 
 
-def create_hydration_log(db: Session, data: HydrationCreate) -> HydrationLog:
+def create_hydration_log(db: Session, user_id: int, data: HydrationLogCreate) -> HydrationLog:
     log = HydrationLog(
-        user_id=data.user_id,
-        amount=data.amount,
-        unit=data.unit,
-        timestamp=data.timestamp or datetime.utcnow(),
+        user_id=user_id,
+        amount_ml=data.amount_ml,
+        date=data.date,
+        notes=data.notes,
     )
     db.add(log)
     db.commit()
@@ -23,16 +23,16 @@ def get_hydration_log(db: Session, log_id: int) -> Optional[HydrationLog]:
     return db.query(HydrationLog).filter(HydrationLog.id == log_id).first()
 
 
-def get_hydration_logs_for_user(db: Session, user_id: int) -> List[HydrationLog]:
+def get_hydration_logs(db: Session, user_id: int) -> List[HydrationLog]:
     return (
         db.query(HydrationLog)
         .filter(HydrationLog.user_id == user_id)
-        .order_by(HydrationLog.timestamp.desc())
+        .order_by(HydrationLog.date.desc())
         .all()
     )
 
 
-def update_hydration_log(db: Session, log_id: int, data: HydrationUpdate) -> Optional[HydrationLog]:
+def update_hydration_log(db: Session, log_id: int, data: HydrationLogUpdate) -> Optional[HydrationLog]:
     log = get_hydration_log(db, log_id)
     if not log:
         return None
