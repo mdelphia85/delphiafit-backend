@@ -6,9 +6,9 @@ from app.models.rep_logs import RepLog
 from app.schemas.rep_logs import RepLogCreate, RepLogUpdate
 
 
-def create_rep_log(db: Session, data: RepLogCreate) -> RepLog:
+def create_rep_log(db: Session, user_id: int, data: RepLogCreate) -> RepLog:
     log = RepLog(
-        user_id=data.user_id,
+        user_id=user_id,
         exercise=data.exercise,
         reps=data.reps,
         weight=data.weight,
@@ -25,7 +25,7 @@ def get_rep_log(db: Session, log_id: int) -> Optional[RepLog]:
     return db.query(RepLog).filter(RepLog.id == log_id).first()
 
 
-def get_rep_logs_for_user(db: Session, user_id: int) -> List[RepLog]:
+def get_rep_logs(db: Session, user_id: int) -> List[RepLog]:
     return (
         db.query(RepLog)
         .filter(RepLog.user_id == user_id)

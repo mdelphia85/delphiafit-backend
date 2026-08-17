@@ -8,7 +8,7 @@ from app.utils.security import get_current_user_id
 from app.schemas.rep_logs import RepLogCreate, RepLogRead
 from app.crud.rep_logs import create_rep_log, get_rep_logs
 
-router = APIRouter(prefix="/rep-logs", tags=["rep_logs"])
+router = APIRouter(prefix="/rep_logs", tags=["rep_logs"])
 
 @router.post("/", response_model=RepLogRead)
 def add_rep_log(
