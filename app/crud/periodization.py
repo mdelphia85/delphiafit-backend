@@ -1,55 +1,55 @@
 from typing import List, Optional
 from sqlalchemy.orm import Session
 
-from app.models.periodization import PeriodizationPlan
-from app.schemas.periodization import PeriodizationCreate, PeriodizationUpdate
+from app.models.periodization import PeriodizationBlock
+from app.schemas.periodization import PeriodizationBlockCreate, PeriodizationBlockUpdate
 
 
-def create_periodization_plan(db: Session, data: PeriodizationCreate) -> PeriodizationPlan:
-    plan = PeriodizationPlan(
-        user_id=data.user_id,
-        phase=data.phase,
-        duration_weeks=data.duration_weeks,
+def create_periodization_block(db: Session, user_id: int, data: PeriodizationBlockCreate) -> PeriodizationBlock:
+    block = PeriodizationBlock(
+        user_id=user_id,
+        block_name=data.block_name,
         focus=data.focus,
-        notes=data.notes,
+        start_date=data.start_date,
+        end_date=data.end_date,
     )
-    db.add(plan)
+    db.add(block)
     db.commit()
-    db.refresh(plan)
-    return plan
+    db.refresh(block)
+    return block
 
 
-def get_periodization_plan(db: Session, plan_id: int) -> Optional[PeriodizationPlan]:
-    return db.query(PeriodizationPlan).filter(PeriodizationPlan.id == plan_id).first()
+def get_periodization_block(db: Session, block_id: int) -> Optional[PeriodizationBlock]:
+    return db.query(PeriodizationBlock).filter(PeriodizationBlock.id == block_id).first()
 
 
-def get_periodization_plans_for_user(db: Session, user_id: int) -> List[PeriodizationPlan]:
+def get_periodization_blocks(db: Session, user_id: int) -> List[PeriodizationBlock]:
     return (
-        db.query(PeriodizationPlan)
-        .filter(PeriodizationPlan.user_id == user_id)
-        .order_by(PeriodizationPlan.id.desc())
+        db.query(PeriodizationBlock)
+        .filter(PeriodizationBlock.user_id == user_id)
+        .order_by(PeriodizationBlock.start_date.desc())
         .all()
     )
 
 
-def update_periodization_plan(db: Session, plan_id: int, data: PeriodizationUpdate) -> Optional[PeriodizationPlan]:
-    plan = get_periodization_plan(db, plan_id)
-    if not plan:
+def update_periodization_block(db: Session, block_id: int, data: PeriodizationBlockUpdate) -> Optional[PeriodizationBlock]:
+    block = get_periodization_block(db, block_id)
+    if not block:
         return None
 
     for field, value in data.dict(exclude_unset=True).items():
-        setattr(plan, field, value)
+        setattr(block, field, value)
 
     db.commit()
-    db.refresh(plan)
-    return plan
+    db.refresh(block)
+    return block
 
 
-def delete_periodization_plan(db: Session, plan_id: int) -> bool:
-    plan = get_periodization_plan(db, plan_id)
-    if not plan:
+def delete_periodization_block(db: Session, block_id: int) -> bool:
+    block = get_periodization_block(db, block_id)
+    if not block:
         return False
 
-    db.delete(plan)
+    db.delete(block)
     db.commit()
     return True
