@@ -6,14 +6,12 @@ from app.models.strength_metric import StrengthMetric
 from app.schemas.strength_metric import StrengthMetricCreate, StrengthMetricUpdate
 
 
-def create_strength_metric(db: Session, data: StrengthMetricCreate) -> StrengthMetric:
+def create_strength_metric(db: Session, user_id: int, data: StrengthMetricCreate) -> StrengthMetric:
     metric = StrengthMetric(
-        user_id=data.user_id,
-        exercise=data.exercise,
-        weight=data.weight,
-        reps=data.reps,
-        timestamp=data.timestamp or datetime.utcnow(),
-        notes=data.notes,
+        user_id=user_id,
+        metric_name=data.metric_name,
+        value=data.value,
+        created_at=data.created_at or datetime.utcnow(),
     )
     db.add(metric)
     db.commit()
@@ -25,11 +23,11 @@ def get_strength_metric(db: Session, metric_id: int) -> Optional[StrengthMetric]
     return db.query(StrengthMetric).filter(StrengthMetric.id == metric_id).first()
 
 
-def get_strength_metrics_for_user(db: Session, user_id: int) -> List[StrengthMetric]:
+def get_strength_metrics(db: Session, user_id: int) -> List[StrengthMetric]:
     return (
         db.query(StrengthMetric)
         .filter(StrengthMetric.user_id == user_id)
-        .order_by(StrengthMetric.timestamp.desc())
+        .order_by(StrengthMetric.created_at.desc())
         .all()
     )
 
