@@ -2,18 +2,18 @@ from typing import List, Optional
 from sqlalchemy.orm import Session
 from datetime import datetime
 
-from app.models.pr_records import PRRecord
+from app.models.pr_records import PersonalRecord
 from app.schemas.pr_records import PRRecordCreate, PRRecordUpdate
 
 
-def create_pr_record(db: Session, data: PRRecordCreate) -> PRRecord:
-    record = PRRecord(
-        user_id=data.user_id,
-        exercise=data.exercise,
-        weight=data.weight,
-        reps=data.reps,
-        timestamp=data.timestamp or datetime.utcnow(),
-        notes=data.notes,
+def create_pr(db: Session, user_id: int, data: PRRecordCreate) -> PersonalRecord:
+    record = PersonalRecord(
+        user_id=user_id,
+        exercise_name=data.exercise_name,
+        pr_type=data.pr_type,
+        value=data.value,
+        is_current=True,
+        created_at=datetime.utcnow(),
     )
     db.add(record)
     db.commit()
@@ -21,21 +21,21 @@ def create_pr_record(db: Session, data: PRRecordCreate) -> PRRecord:
     return record
 
 
-def get_pr_record(db: Session, record_id: int) -> Optional[PRRecord]:
-    return db.query(PRRecord).filter(PRRecord.id == record_id).first()
+def get_pr(db: Session, record_id: int) -> Optional[PersonalRecord]:
+    return db.query(PersonalRecord).filter(PersonalRecord.id == record_id).first()
 
 
-def get_pr_records_for_user(db: Session, user_id: int) -> List[PRRecord]:
+def get_prs(db: Session, user_id: int) -> List[PersonalRecord]:
     return (
-        db.query(PRRecord)
-        .filter(PRRecord.user_id == user_id)
-        .order_by(PRRecord.timestamp.desc())
+        db.query(PersonalRecord)
+        .filter(PersonalRecord.user_id == user_id)
+        .order_by(PersonalRecord.created_at.desc())
         .all()
     )
 
 
-def update_pr_record(db: Session, record_id: int, data: PRRecordUpdate) -> Optional[PRRecord]:
-    record = get_pr_record(db, record_id)
+def update_pr(db: Session, record_id: int, data: PRRecordUpdate) -> Optional[PersonalRecord]:
+    record = get_pr(db, record_id)
     if not record:
         return None
 
@@ -47,8 +47,8 @@ def update_pr_record(db: Session, record_id: int, data: PRRecordUpdate) -> Optio
     return record
 
 
-def delete_pr_record(db: Session, record_id: int) -> bool:
-    record = get_pr_record(db, record_id)
+def delete_pr(db: Session, record_id: int) -> bool:
+    record = get_pr(db, record_id)
     if not record:
         return False
 
