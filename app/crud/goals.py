@@ -1,19 +1,19 @@
 from typing import List, Optional
 from sqlalchemy.orm import Session
-from datetime import datetime
 
 from app.models.goals import Goal
 from app.schemas.goals import GoalCreate, GoalUpdate
 
 
-def create_goal(db: Session, data: GoalCreate) -> Goal:
+def create_goal(db: Session, user_id: int, data: GoalCreate) -> Goal:
     goal = Goal(
-        user_id=data.user_id,
+        user_id=user_id,
         title=data.title,
-        description=data.description,
-        target_date=data.target_date,
-        completed=data.completed or False,
-        created_at=datetime.utcnow(),
+        target_metric=data.target_metric,
+        target_value=data.target_value,
+        deadline=data.deadline,
+        current_value=0.0,
+        is_completed=False,
     )
     db.add(goal)
     db.commit()
@@ -25,7 +25,7 @@ def get_goal(db: Session, goal_id: int) -> Optional[Goal]:
     return db.query(Goal).filter(Goal.id == goal_id).first()
 
 
-def get_goals_for_user(db: Session, user_id: int) -> List[Goal]:
+def get_goals(db: Session, user_id: int) -> List[Goal]:
     return (
         db.query(Goal)
         .filter(Goal.user_id == user_id)
