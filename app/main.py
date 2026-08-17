@@ -14,7 +14,7 @@ from app.routers import (
     sleep,
     weight,
     strength,
-    sports_performance,
+    sports_log,   # ← FULL SYSTEM FIX
 
     # Fitness + Nutrition
     nutrition,
@@ -108,7 +108,7 @@ app.include_router(hydration.router)
 app.include_router(sleep.router)
 app.include_router(weight.router)
 app.include_router(strength.router)
-app.include_router(sports_performance.router)
+app.include_router(sports_log.router)  # ← FULL SYSTEM FIX
 
 # Fitness + Nutrition
 app.include_router(nutrition.router)

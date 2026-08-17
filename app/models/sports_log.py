@@ -1,7 +1,3 @@
-from sqlalchemy import Column, Integer, String, DateTime
-from datetime import datetime
-from app.database.connection import Base
-
 class SportsLog(Base):
     __tablename__ = "sports_logs"
 
