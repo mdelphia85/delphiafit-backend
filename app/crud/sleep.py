@@ -1,18 +1,17 @@
 from typing import List, Optional
 from sqlalchemy.orm import Session
-from datetime import datetime
 
 from app.models.sleep import SleepLog
-from app.schemas.sleep import SleepCreate, SleepUpdate
+from app.schemas.sleep import SleepLogCreate, SleepLogUpdate
 
 
-def create_sleep_log(db: Session, data: SleepCreate) -> SleepLog:
+def create_sleep_log(db: Session, user_id: int, data: SleepLogCreate) -> SleepLog:
     log = SleepLog(
-        user_id=data.user_id,
-        duration=data.duration,
+        user_id=user_id,
+        duration_hours=data.duration_hours,
         quality=data.quality,
         notes=data.notes,
-        timestamp=data.timestamp or datetime.utcnow(),
+        date=data.date,
     )
     db.add(log)
     db.commit()
@@ -24,16 +23,16 @@ def get_sleep_log(db: Session, log_id: int) -> Optional[SleepLog]:
     return db.query(SleepLog).filter(SleepLog.id == log_id).first()
 
 
-def get_sleep_logs_for_user(db: Session, user_id: int) -> List[SleepLog]:
+def get_sleep_logs(db: Session, user_id: int) -> List[SleepLog]:
     return (
         db.query(SleepLog)
         .filter(SleepLog.user_id == user_id)
-        .order_by(SleepLog.timestamp.desc())
+        .order_by(SleepLog.date.desc())
         .all()
     )
 
 
-def update_sleep_log(db: Session, log_id: int, data: SleepUpdate) -> Optional[SleepLog]:
+def update_sleep_log(db: Session, log_id: int, data: SleepLogUpdate) -> Optional[SleepLog]:
     log = get_sleep_log(db, log_id)
     if not log:
         return None
