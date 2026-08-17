@@ -3,7 +3,7 @@ from sqlalchemy.orm import declarative_base
 
 Base = declarative_base()
 
-class BodyMetric(Base):
+class BodyMetrics(Base):
     __tablename__ = "body_metrics"
 
     id = Column(Integer, primary_key=True, index=True)
