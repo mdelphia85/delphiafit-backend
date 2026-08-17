@@ -3,18 +3,19 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 
 from app.models.nutrition import NutritionLog
-from app.schemas.nutrition import NutritionCreate, NutritionUpdate
+from app.schemas.nutrition import NutritionLogCreate, NutritionLogUpdate
 
 
-def create_nutrition_log(db: Session, data: NutritionCreate) -> NutritionLog:
+def create_nutrition_log(db: Session, user_id: int, data: NutritionLogCreate) -> NutritionLog:
     log = NutritionLog(
-        user_id=data.user_id,
+        user_id=user_id,
         calories=data.calories,
         protein=data.protein,
         carbs=data.carbs,
         fats=data.fats,
-        timestamp=data.timestamp or datetime.utcnow(),
+        water_oz=data.water_oz,
         notes=data.notes,
+        recorded_at=datetime.utcnow(),
     )
     db.add(log)
     db.commit()
@@ -30,12 +31,12 @@ def get_nutrition_logs_for_user(db: Session, user_id: int) -> List[NutritionLog]
     return (
         db.query(NutritionLog)
         .filter(NutritionLog.user_id == user_id)
-        .order_by(NutritionLog.timestamp.desc())
+        .order_by(NutritionLog.recorded_at.desc())
         .all()
     )
 
 
-def update_nutrition_log(db: Session, log_id: int, data: NutritionUpdate) -> Optional[NutritionLog]:
+def update_nutrition_log(db: Session, log_id: int, data: NutritionLogUpdate) -> Optional[NutritionLog]:
     log = get_nutrition_log(db, log_id)
     if not log:
         return None
