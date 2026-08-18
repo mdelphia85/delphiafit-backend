@@ -1,32 +1,38 @@
-from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
-from typing import List
+from datetime import datetime
+from typing import Optional
 
-from app.database.connection import get_db
-from app.utils.security import get_current_user_id
+from pydantic import BaseModel, ConfigDict
 
-from app.schemas.nutrition import (
-    NutritionLogCreate,
-    NutritionLogRead
-)
-from app.crud.nutrition import (
-    create_nutrition_log,
-    get_nutrition_logs
-)
 
-router = APIRouter(prefix="/nutrition", tags=["nutrition"])
+class NutritionLogCreate(BaseModel):
+    calories: int = 0
+    protein: int = 0
+    carbs: int = 0
+    fats: int = 0
+    water_oz: int = 0
+    notes: Optional[str] = None
 
-@router.post("/", response_model=NutritionLogRead)
-def add_nutrition_log(
-    payload: NutritionLogCreate,
-    db: Session = Depends(get_db),
-    user_id: int = Depends(get_current_user_id)
-):
-    return create_nutrition_log(db, user_id, payload)
 
-@router.get("/", response_model=List[NutritionLogRead])
-def list_nutrition_logs(
-    db: Session = Depends(get_db),
-    user_id: int = Depends(get_current_user_id)
-):
-    return get_nutrition_logs(db, user_id)
+class NutritionLogUpdate(BaseModel):
+    calories: Optional[int] = None
+    protein: Optional[int] = None
+    carbs: Optional[int] = None
+    fats: Optional[int] = None
+    water_oz: Optional[int] = None
+    notes: Optional[str] = None
+
+
+class NutritionLogRead(BaseModel):
+    id: int
+    user_id: int
+
+    calories: int
+    protein: int
+    carbs: int
+    fats: int
+    water_oz: int
+
+    notes: Optional[str] = None
+    recorded_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
