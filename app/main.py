@@ -27,7 +27,7 @@ from app.routers import (
     rep_logs,
 
     # Social + Community
-    social,
+    # social,   # ← REMOVED (subsystem not implemented yet)
 
     # AI Systems
     ai,
@@ -108,7 +108,7 @@ app.include_router(hydration.router)
 app.include_router(sleep.router)
 app.include_router(weight.router)
 app.include_router(strength.router)
-app.include_router(sports_log.router)  # ← FULL SYSTEM FIX
+app.include_router(sports_log.router)
 
 # Fitness + Nutrition
 app.include_router(nutrition.router)
@@ -120,7 +120,8 @@ app.include_router(pr.router)
 app.include_router(periodization.router)
 app.include_router(rep_logs.router)
 
-
+# Social + Community
+# app.include_router(social.router)   # ← REMOVED
 
 # AI
 app.include_router(ai.router)
