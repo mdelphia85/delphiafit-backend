@@ -46,7 +46,7 @@ class EvaluationCreate(BaseModel):
 # ---------------------------------------------------------
 @router.post("/pipeline")
 def create_pipeline(data: PipelineCreate, db: Session = Depends(get_db)):
-    return crud.create_pipeline(db, data.dict())
+    return crud.create_pipeline(db, data.model_dump())
 
 
 @router.get("/pipeline/list")
@@ -59,7 +59,7 @@ def list_pipelines(db: Session = Depends(get_db)):
 # ---------------------------------------------------------
 @router.post("/drill")
 def add_drill(data: DrillCreate, db: Session = Depends(get_db)):
-    return crud.add_drill(db, data.dict())
+    return crud.add_drill(db, data.model_dump())
 
 
 @router.get("/drill/{pipeline_id}")
@@ -72,7 +72,7 @@ def list_drills(pipeline_id: int, db: Session = Depends(get_db)):
 # ---------------------------------------------------------
 @router.post("/operator")
 def add_operator(data: OperatorCreate, db: Session = Depends(get_db)):
-    return crud.add_operator(db, data.dict())
+    return crud.add_operator(db, data.model_dump())
 
 
 @router.get("/operator/{pipeline_id}")
@@ -85,7 +85,7 @@ def list_operators(pipeline_id: int, db: Session = Depends(get_db)):
 # ---------------------------------------------------------
 @router.post("/evaluation")
 def evaluate(data: EvaluationCreate, db: Session = Depends(get_db)):
-    return crud.evaluate(db, data.dict())
+    return crud.evaluate(db, data.model_dump())
 
 
 @router.get("/evaluation/{operator_id}")

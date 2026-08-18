@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from datetime import datetime
 
 # ============================================================
@@ -6,7 +6,7 @@ from datetime import datetime
 # ============================================================
 
 class TacticalDrillBase(BaseModel):
-    division: str
+    division: str | None = None
     category: str
     name: str
     level: str | None = None
@@ -99,5 +99,4 @@ class TacticalDrillUpdate(BaseModel):
 class TacticalDrillResponse(TacticalDrillBase):
     id: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

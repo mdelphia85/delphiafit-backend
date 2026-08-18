@@ -41,7 +41,7 @@ class RecordIssue(BaseModel):
 # ---------------------------------------------------------
 @router.post("/create")
 def create_certification(data: CertificationCreate, db: Session = Depends(get_db)):
-    return crud.create_certification(db, data.dict())
+    return crud.create_certification(db, data.model_dump())
 
 
 @router.get("/list")
@@ -54,7 +54,7 @@ def list_certifications(db: Session = Depends(get_db)):
 # ---------------------------------------------------------
 @router.post("/requirement")
 def add_requirement(data: RequirementCreate, db: Session = Depends(get_db)):
-    return crud.add_requirement(db, data.dict())
+    return crud.add_requirement(db, data.model_dump())
 
 
 @router.get("/requirement/{certification_id}")
@@ -67,7 +67,7 @@ def list_requirements(certification_id: int, db: Session = Depends(get_db)):
 # ---------------------------------------------------------
 @router.post("/record")
 def issue_record(data: RecordIssue, db: Session = Depends(get_db)):
-    return crud.issue_certification(db, data.dict())
+    return crud.issue_certification(db, data.model_dump())
 
 
 @router.get("/record/{user_id}")

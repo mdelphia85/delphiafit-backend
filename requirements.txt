@@ -1,16 +1,11 @@
-# force rebuild 10
-
-fastapi
-uvicorn
-python-dotenv
-sqlalchemy
-psycopg2-binary
-pydantic
-email-validator
+fastapi>=0.115,<1
+uvicorn>=0.30,<1
+python-dotenv>=1,<2
+sqlalchemy>=2,<3
+psycopg2-binary>=2.9,<3
+pydantic>=2,<3
+email-validator>=2,<3
 passlib==1.7.4
 bcrypt==4.0.1
-python-jose[cryptography]
-python-multipart
-# rebuild-trigger
-# test rebuild
-
+python-jose[cryptography]>=3.3,<4
+python-multipart>=0.0.9,<1

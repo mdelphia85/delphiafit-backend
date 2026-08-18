@@ -29,7 +29,8 @@ class AIEngine:
         """
 
         profile = self.personalization.build_user_profile(user_data)
-        difficulty = self.smart_mode.adjust_difficulty(profile)
+        smart_adjustment = self.smart_mode.adjust(profile)
+        difficulty = smart_adjustment["recommended_difficulty"]
         recovery = self.personalization.recovery_status(profile)
         nutrition = self.personalization.nutrition_status(profile)
 
@@ -56,7 +57,7 @@ class AIEngine:
     # ---------------------------------------------------------
     def smart_mode_adjust(self, user_data: dict):
         profile = self.personalization.build_user_profile(user_data)
-        return self.smart_mode.adjust_difficulty(profile)
+        return self.smart_mode.adjust(profile)
 
     # ---------------------------------------------------------
     # Weekly Plan Generation

@@ -45,7 +45,7 @@ class EvaluationCreate(BaseModel):
 # ---------------------------------------------------------
 @router.post("/program")
 def create_program(data: ProgramCreate, db: Session = Depends(get_db)):
-    return crud.create_program(db, data.dict())
+    return crud.create_program(db, data.model_dump())
 
 
 @router.get("/program/list")
@@ -58,7 +58,7 @@ def list_programs(db: Session = Depends(get_db)):
 # ---------------------------------------------------------
 @router.post("/module")
 def add_module(data: ModuleCreate, db: Session = Depends(get_db)):
-    return crud.add_module(db, data.dict())
+    return crud.add_module(db, data.model_dump())
 
 
 @router.get("/module/{program_id}")
@@ -71,7 +71,7 @@ def list_modules(program_id: int, db: Session = Depends(get_db)):
 # ---------------------------------------------------------
 @router.post("/cadet/enroll")
 def enroll_cadet(data: CadetEnroll, db: Session = Depends(get_db)):
-    return crud.enroll_cadet(db, data.dict())
+    return crud.enroll_cadet(db, data.model_dump())
 
 
 @router.get("/cadet/{program_id}")
@@ -84,7 +84,7 @@ def list_cadets(program_id: int, db: Session = Depends(get_db)):
 # ---------------------------------------------------------
 @router.post("/evaluation")
 def evaluate(data: EvaluationCreate, db: Session = Depends(get_db)):
-    return crud.evaluate(db, data.dict())
+    return crud.evaluate(db, data.model_dump())
 
 
 @router.get("/evaluation/{cadet_id}")

@@ -14,7 +14,7 @@ class BodyMetricsBase(BaseModel):
 
 
 class BodyMetricsCreate(BodyMetricsBase):
-    user_id: int
+    pass
 
 
 class BodyMetricsUpdate(BaseModel):

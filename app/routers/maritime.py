@@ -47,7 +47,7 @@ class OperationClose(BaseModel):
 # ---------------------------------------------------------
 @router.post("/operation")
 def create_operation(data: OperationCreate, db: Session = Depends(get_db)):
-    return crud.create_operation(db, data.dict())
+    return crud.create_operation(db, data.model_dump())
 
 
 # ---------------------------------------------------------
@@ -85,7 +85,7 @@ def close_operation(op_id: int, data: OperationClose, db: Session = Depends(get_
 # ---------------------------------------------------------
 @router.post("/crew")
 def add_crew(data: CrewCreate, db: Session = Depends(get_db)):
-    return crud.add_crew(db, data.dict())
+    return crud.add_crew(db, data.model_dump())
 
 
 # ---------------------------------------------------------
@@ -101,7 +101,7 @@ def list_crew(operation_id: int, db: Session = Depends(get_db)):
 # ---------------------------------------------------------
 @router.post("/incident")
 def log_incident(data: IncidentCreate, db: Session = Depends(get_db)):
-    return crud.log_incident(db, data.dict())
+    return crud.log_incident(db, data.model_dump())
 
 
 # ---------------------------------------------------------

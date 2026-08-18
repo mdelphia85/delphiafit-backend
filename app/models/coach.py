@@ -13,12 +13,16 @@ class Coach(Base):
     name = Column(String, nullable=False)
     organization = Column(String, nullable=True)
     role = Column(String, default="coach")  # head_coach, assistant, recruiter, etc.
+    hashed_password = Column(String, nullable=True)
+    password_reset_token_hash = Column(String, nullable=True)
+    password_reset_expires_at = Column(DateTime, nullable=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow)
 
     # Relationships
     teams = relationship("Team", back_populates="coach")
+    team_memberships = relationship("CoachTeamMembership", back_populates="coach", cascade="all, delete-orphan")
     invites = relationship("Invite", back_populates="coach")
 
     # NEW relationships required for Phase 4

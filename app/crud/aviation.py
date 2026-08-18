@@ -1,43 +1,73 @@
-from typing import List, Optional
 from sqlalchemy.orm import Session
+from datetime import datetime
 
-from app.models.aviation import AviationLog
-
-
-def create_aviation_log(db: Session, data: dict) -> AviationLog:
-    log = AviationLog(**data)
-    db.add(log)
-    db.commit()
-    db.refresh(log)
-    return log
+from app.models.aviation import AviationOperation, AviationCrew, AviationEvent
 
 
-def get_aviation_log(db: Session, log_id: int) -> Optional[AviationLog]:
-    return db.query(AviationLog).filter(AviationLog.id == log_id).first()
+class AviationCRUD:
 
+    def create_operation(self, db: Session, data: dict):
+        op = AviationOperation(
+            name=data["name"],
+            operation_type=data["operation_type"],
+            aircraft=data.get("aircraft"),
+            location=data.get("location"),
+            mission_commander_id=data["mission_commander_id"],
+            notes=data.get("notes"),
+            started_at=datetime.utcnow()
+        )
+        db.add(op)
+        db.commit()
+        db.refresh(op)
+        return op
 
-def get_aviation_logs(db: Session) -> List[AviationLog]:
-    return db.query(AviationLog).all()
+    def list_operations(self, db: Session):
+        return db.query(AviationOperation).all()
 
+    def get_operation(self, db: Session, op_id: int):
+        return db.query(AviationOperation).filter(AviationOperation.id == op_id).first()
 
-def update_aviation_log(db: Session, log_id: int, data: dict) -> Optional<AviationLog]:
-    log = get_aviation_log(db, log_id)
-    if not log:
-        return None
+    def close_operation(self, db: Session, op_id: int, status: str = "completed"):
+        op = self.get_operation(db, op_id)
+        if not op:
+            raise ValueError("Operation not found.")
+        op.status = status
+        op.ended_at = datetime.utcnow()
+        db.commit()
+        db.refresh(op)
+        return op
 
-    for field, value in data.items():
-        setattr(log, field, value)
+    def add_crew(self, db: Session, data: dict):
+        crew = AviationCrew(
+            operation_id=data["operation_id"],
+            role=data["role"],
+            member_name=data["member_name"],
+            certification=data.get("certification")
+        )
+        db.add(crew)
+        db.commit()
+        db.refresh(crew)
+        return crew
 
-    db.commit()
-    db.refresh(log)
-    return log
+    def list_crew(self, db: Session, operation_id: int):
+        return db.query(AviationCrew).filter(
+            AviationCrew.operation_id == operation_id
+        ).all()
 
+    def log_event(self, db: Session, data: dict):
+        event = AviationEvent(
+            operation_id=data["operation_id"],
+            event_type=data["event_type"],
+            description=data.get("description"),
+            severity=data.get("severity"),
+            timestamp=datetime.utcnow()
+        )
+        db.add(event)
+        db.commit()
+        db.refresh(event)
+        return event
 
-def delete_aviation_log(db: Session, log_id: int) -> bool:
-    log = get_aviation_log(db, log_id)
-    if not log:
-        return False
-
-    db.delete(log)
-    db.commit()
-    return True
+    def list_events(self, db: Session, operation_id: int):
+        return db.query(AviationEvent).filter(
+            AviationEvent.operation_id == operation_id
+        ).all()

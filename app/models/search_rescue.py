@@ -2,7 +2,7 @@ from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, Float, 
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
-from app.database import Base
+from app.database.connection import Base
 
 
 class SearchRescue(Base):

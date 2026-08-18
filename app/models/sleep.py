@@ -1,7 +1,5 @@
 from sqlalchemy import Column, Integer, Float, String, DateTime
-from sqlalchemy.orm import declarative_base
-
-Base = declarative_base()
+from app.database.connection import Base
 
 class SleepLog(Base):
     __tablename__ = "sleep_logs"

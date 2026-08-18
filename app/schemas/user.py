@@ -1,4 +1,6 @@
-from pydantic import BaseModel, EmailStr
+from datetime import datetime
+
+from pydantic import BaseModel, ConfigDict, EmailStr
 
 
 class UserCreate(BaseModel):
@@ -23,5 +25,11 @@ class UserResponse(BaseModel):
     name: str
     email: EmailStr
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AdminUserResponse(UserResponse):
+    is_admin: bool
+    streak: int
+    created_at: datetime | None = None
+    last_login: datetime | None = None

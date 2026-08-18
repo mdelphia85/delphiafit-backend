@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional
 
-from app.database import get_db
+from app.database.connection import get_db
 from app.models.invite import Invite
 from app.models.team import Team
 from app.models.coach import Coach

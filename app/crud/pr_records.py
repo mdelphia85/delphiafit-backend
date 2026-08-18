@@ -12,6 +12,7 @@ def create_pr(db: Session, user_id: int, data: PRRecordCreate) -> PersonalRecord
         exercise_name=data.exercise_name,
         pr_type=data.pr_type,
         value=data.value,
+        notes=data.notes,
         is_current=True,
         created_at=datetime.utcnow(),
     )
@@ -39,7 +40,7 @@ def update_pr(db: Session, record_id: int, data: PRRecordUpdate) -> Optional[Per
     if not record:
         return None
 
-    for field, value in data.dict(exclude_unset=True).items():
+    for field, value in data.model_dump(exclude_unset=True).items():
         setattr(record, field, value)
 
     db.commit()

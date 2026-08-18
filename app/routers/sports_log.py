@@ -14,7 +14,7 @@ from app.crud.sports_log import (
     get_sports_logs
 )
 
-router = APIRouter(prefix="/sports", tags=["sports"])
+router = APIRouter(prefix="/sports/logs", tags=["sports logs"])
 
 @router.post("/", response_model=SportsLogRead)
 def add_sports_log(

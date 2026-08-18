@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
 
-from app.database import get_db
+from app.database.connection import get_db
 from app.crud.creator import CreatorCRUD
 
 router = APIRouter(prefix="/creator", tags=["Creator"])
@@ -38,7 +38,7 @@ class RatingCreate(BaseModel):
 @router.post("/create")
 def create_creator(data: CreatorCreate, db: Session = Depends(get_db)):
     try:
-        return crud.create_creator(db, data.dict())
+        return crud.create_creator(db, data.model_dump())
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -46,7 +46,7 @@ def create_creator(data: CreatorCreate, db: Session = Depends(get_db)):
 # ---------------------------------------------------------
 # Get Creator
 # ---------------------------------------------------------
-@router.get("/{creator_id}")
+@router.get("/{creator_id:int}")
 def get_creator(creator_id: int, db: Session = Depends(get_db)):
     creator = crud.get_creator(db, creator_id)
     if not creator:

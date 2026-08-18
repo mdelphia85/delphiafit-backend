@@ -48,7 +48,7 @@ class ClearanceUpdate(BaseModel):
 # ---------------------------------------------------------
 @router.post("/protocol")
 def create_protocol(data: ProtocolCreate, db: Session = Depends(get_db)):
-    return crud.create_protocol(db, data.dict())
+    return crud.create_protocol(db, data.model_dump())
 
 
 @router.get("/protocol/{injury_id}")
@@ -61,7 +61,7 @@ def list_protocols(injury_id: int, db: Session = Depends(get_db)):
 # ---------------------------------------------------------
 @router.post("/stage")
 def add_stage(data: StageCreate, db: Session = Depends(get_db)):
-    return crud.add_stage(db, data.dict())
+    return crud.add_stage(db, data.model_dump())
 
 
 @router.get("/stage/{protocol_id}")
@@ -74,7 +74,7 @@ def list_stages(protocol_id: int, db: Session = Depends(get_db)):
 # ---------------------------------------------------------
 @router.post("/progress")
 def update_progress(data: ProgressUpdate, db: Session = Depends(get_db)):
-    return crud.update_progress(db, data.dict())
+    return crud.update_progress(db, data.model_dump())
 
 
 @router.get("/progress/{stage_id}/{user_id}")
@@ -87,7 +87,7 @@ def get_progress(stage_id: int, user_id: int, db: Session = Depends(get_db)):
 # ---------------------------------------------------------
 @router.post("/clearance")
 def set_clearance(data: ClearanceUpdate, db: Session = Depends(get_db)):
-    return crud.set_clearance(db, data.dict())
+    return crud.set_clearance(db, data.model_dump())
 
 
 @router.get("/clearance/{injury_id}/{user_id}")

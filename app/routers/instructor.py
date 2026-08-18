@@ -39,7 +39,7 @@ class FeedbackCreate(BaseModel):
 # ---------------------------------------------------------
 @router.post("/create")
 def create_instructor(data: InstructorCreate, db: Session = Depends(get_db)):
-    return crud.create_instructor(db, data.dict())
+    return crud.create_instructor(db, data.model_dump())
 
 
 @router.get("/list/{agency}")
@@ -52,7 +52,7 @@ def list_instructors(agency: str, db: Session = Depends(get_db)):
 # ---------------------------------------------------------
 @router.post("/assign")
 def assign(data: AssignmentCreate, db: Session = Depends(get_db)):
-    return crud.assign(db, data.dict())
+    return crud.assign(db, data.model_dump())
 
 
 @router.get("/assign/{instructor_id}")
@@ -65,7 +65,7 @@ def list_assignments(instructor_id: int, db: Session = Depends(get_db)):
 # ---------------------------------------------------------
 @router.post("/feedback")
 def add_feedback(data: FeedbackCreate, db: Session = Depends(get_db)):
-    return crud.add_feedback(db, data.dict())
+    return crud.add_feedback(db, data.model_dump())
 
 
 @router.get("/feedback/{user_id}")

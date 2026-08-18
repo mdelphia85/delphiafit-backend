@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
 
-from app.database import get_db
+from app.database.connection import get_db
 from app.crud.tournament import TournamentCRUD
 
 router = APIRouter(prefix="/tournament", tags=["Tournament"])
@@ -33,7 +33,7 @@ class TournamentUpdate(BaseModel):
 @router.post("/create")
 def create_tournament(data: TournamentCreate, db: Session = Depends(get_db)):
     try:
-        return crud.create_tournament(db, data.dict())
+        return crud.create_tournament(db, data.model_dump())
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 

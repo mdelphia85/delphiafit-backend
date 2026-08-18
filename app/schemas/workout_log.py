@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import Optional, List, Dict
 from datetime import datetime
 
@@ -17,6 +17,7 @@ class WorkoutLogCreate(BaseModel):
     plan_json: Optional[Dict] = None
     block_durations_json: Optional[Dict] = None
     equipment_json: Optional[List[str]] = None
+    timestamp: Optional[datetime] = None
 
 
 class WorkoutLogUpdate(BaseModel):
@@ -54,7 +55,6 @@ class WorkoutLog(BaseModel):
     block_durations_json: Optional[Dict] = None
     equipment_json: Optional[List[str]] = None
 
-    timestamp: datetime
+    date: datetime
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)

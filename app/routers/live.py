@@ -51,7 +51,7 @@ class OfflineSync(BaseModel):
 # ---------------------------------------------------------
 @router.post("/class/join")
 def join_class(data: LiveClassJoin, db: Session = Depends(get_db)):
-    return live_sync.join_class(db, data.dict())
+    return live_sync.join_class(db, data.model_dump())
 
 
 # ---------------------------------------------------------
@@ -59,7 +59,7 @@ def join_class(data: LiveClassJoin, db: Session = Depends(get_db)):
 # ---------------------------------------------------------
 @router.post("/coaching/start")
 def start_coaching(data: CoachingStart, db: Session = Depends(get_db)):
-    return live_sync.start_coaching(db, data.dict())
+    return live_sync.start_coaching(db, data.model_dump())
 
 
 # ---------------------------------------------------------
@@ -67,7 +67,7 @@ def start_coaching(data: CoachingStart, db: Session = Depends(get_db)):
 # ---------------------------------------------------------
 @router.post("/reps/stream")
 def stream_reps(data: RepStream):
-    return rep_counter.process_frame(data.dict())
+    return rep_counter.process_frame(data.model_dump())
 
 
 # ---------------------------------------------------------
@@ -75,7 +75,7 @@ def stream_reps(data: RepStream):
 # ---------------------------------------------------------
 @router.post("/video/request")
 def video_ai_request(data: VideoRequest):
-    return video_ai.process_request(data.dict())
+    return video_ai.process_request(data.model_dump())
 
 
 # ---------------------------------------------------------
@@ -83,4 +83,4 @@ def video_ai_request(data: VideoRequest):
 # ---------------------------------------------------------
 @router.post("/sync/offline")
 def offline_sync(data: OfflineSync, db: Session = Depends(get_db)):
-    return live_sync.sync_offline(db, data.dict())
+    return live_sync.sync_offline(db, data.model_dump())

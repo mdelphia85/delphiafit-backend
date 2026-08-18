@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
 
-from app.database import get_db
+from app.database.connection import get_db
 from app.crud.season import SeasonCRUD
 
 router = APIRouter(prefix="/season", tags=["Season"])
@@ -30,7 +30,7 @@ class SeasonUpdate(BaseModel):
 @router.post("/create")
 def create_season(data: SeasonCreate, db: Session = Depends(get_db)):
     try:
-        return crud.create_season(db, data.dict())
+        return crud.create_season(db, data.model_dump())
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -38,7 +38,7 @@ def create_season(data: SeasonCreate, db: Session = Depends(get_db)):
 # ---------------------------------------------------------
 # Get Season by ID
 # ---------------------------------------------------------
-@router.get("/{season_id}")
+@router.get("/{season_id:int}")
 def get_season(season_id: int, db: Session = Depends(get_db)):
     season = crud.get_season(db, season_id)
     if not season:

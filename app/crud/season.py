@@ -1,43 +1,70 @@
-from typing import List, Optional
 from sqlalchemy.orm import Session
+from datetime import datetime
 
 from app.models.season import Season
 
 
-def create_season(db: Session, data: dict) -> Season:
-    season = Season(**data)
-    db.add(season)
-    db.commit()
-    db.refresh(season)
-    return season
+class SeasonCRUD:
 
+    # ---------------------------------------------------------
+    # Create Season
+    # ---------------------------------------------------------
+    def create_season(self, db: Session, data: dict):
+        season = Season(
+            name=data["name"],
+            year=data.get("year"),
+            sport=data.get("sport"),
+            is_active=True,
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow()
+        )
 
-def get_season(db: Session, season_id: int) -> Optional[Season]:
-    return db.query(Season).filter(Season.id == season_id).first()
+        db.add(season)
+        db.commit()
+        db.refresh(season)
+        return season
 
+    # ---------------------------------------------------------
+    # Get Season by ID
+    # ---------------------------------------------------------
+    def get_season(self, db: Session, season_id: int):
+        return db.query(Season).filter(Season.id == season_id).first()
 
-def get_seasons(db: Session) -> List[Season]:
-    return db.query(Season).all()
+    # ---------------------------------------------------------
+    # List Seasons
+    # ---------------------------------------------------------
+    def list_seasons(self, db: Session):
+        return db.query(Season).filter(Season.is_active == True).all()
 
+    # ---------------------------------------------------------
+    # Update Season
+    # ---------------------------------------------------------
+    def update_season(self, db: Session, season_id: int, updates: dict):
+        season = self.get_season(db, season_id)
+        if not season:
+            raise ValueError("Season not found.")
 
-def update_season(db: Session, season_id: int, data: dict) -> Optional[Season]:
-    season = get_season(db, season_id)
-    if not season:
-        return None
+        for key, value in updates.items():
+            if hasattr(season, key):
+                setattr(season, key, value)
 
-    for field, value in data.items():
-        setattr(season, field, value)
+        season.updated_at = datetime.utcnow()
 
-    db.commit()
-    db.refresh(season)
-    return season
+        db.commit()
+        db.refresh(season)
+        return season
 
+    # ---------------------------------------------------------
+    # Deactivate Season
+    # ---------------------------------------------------------
+    def deactivate_season(self, db: Session, season_id: int):
+        season = self.get_season(db, season_id)
+        if not season:
+            raise ValueError("Season not found.")
 
-def delete_season(db: Session, season_id: int) -> bool:
-    season = get_season(db, season_id)
-    if not season:
-        return False
+        season.is_active = False
+        season.updated_at = datetime.utcnow()
 
-    db.delete(season)
-    db.commit()
-    return True
+        db.commit()
+        db.refresh(season)
+        return season

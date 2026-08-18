@@ -43,7 +43,7 @@ class VictimCreate(BaseModel):
 # ---------------------------------------------------------
 @router.post("/operation")
 def create_operation(data: OperationCreate, db: Session = Depends(get_db)):
-    return crud.create_operation(db, data.dict())
+    return crud.create_operation(db, data.model_dump())
 
 
 # ---------------------------------------------------------
@@ -59,7 +59,7 @@ def list_operations(db: Session = Depends(get_db)):
 # ---------------------------------------------------------
 @router.post("/team")
 def add_team(data: TeamCreate, db: Session = Depends(get_db)):
-    return crud.add_team(db, data.dict())
+    return crud.add_team(db, data.model_dump())
 
 
 # ---------------------------------------------------------
@@ -67,7 +67,7 @@ def add_team(data: TeamCreate, db: Session = Depends(get_db)):
 # ---------------------------------------------------------
 @router.post("/victim")
 def add_victim(data: VictimCreate, db: Session = Depends(get_db)):
-    return crud.add_victim(db, data.dict())
+    return crud.add_victim(db, data.model_dump())
 
 
 # ---------------------------------------------------------

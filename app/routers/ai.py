@@ -61,7 +61,7 @@ def ai_coach(req: CoachRequest):
 @router.post("/personalize")
 def ai_personalize(user_data: UserData):
     try:
-        return ai.personalize(user_data.dict(exclude_none=True))
+        return ai.personalize(user_data.model_dump(exclude_none=True))
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -72,7 +72,7 @@ def ai_personalize(user_data: UserData):
 @router.post("/smart-mode")
 def ai_smart_mode(user_data: UserData):
     try:
-        return ai.smart_mode_adjust(user_data.dict(exclude_none=True))
+        return ai.smart_mode_adjust(user_data.model_dump(exclude_none=True))
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -83,7 +83,7 @@ def ai_smart_mode(user_data: UserData):
 @router.post("/weekly-plan")
 def ai_weekly_plan(user_data: UserData):
     try:
-        return ai.generate_weekly_plan(user_data.dict(exclude_none=True))
+        return ai.generate_weekly_plan(user_data.model_dump(exclude_none=True))
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -94,7 +94,7 @@ def ai_weekly_plan(user_data: UserData):
 @router.post("/form-score")
 def ai_form_score(motion_data: MotionData):
     try:
-        return ai.score_form(motion_data.dict())
+        return ai.score_form(motion_data.model_dump())
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -105,6 +105,6 @@ def ai_form_score(motion_data: MotionData):
 @router.post("/velocity")
 def ai_velocity(rep_data: VelocityData):
     try:
-        return ai.estimate_velocity(rep_data.dict())
+        return ai.estimate_velocity(rep_data.model_dump())
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

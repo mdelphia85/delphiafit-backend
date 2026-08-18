@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
 
-from app.database import get_db
+from app.database.connection import get_db
 from app.crud.org import OrgCRUD
 
 router = APIRouter(prefix="/org", tags=["Organization"])
@@ -42,7 +42,7 @@ class SettingsUpdate(BaseModel):
 @router.post("/create")
 def create_org(data: OrgCreate, db: Session = Depends(get_db)):
     try:
-        return crud.create_org(db, data.dict())
+        return crud.create_org(db, data.model_dump())
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -50,7 +50,7 @@ def create_org(data: OrgCreate, db: Session = Depends(get_db)):
 # ---------------------------------------------------------
 # Get Organization
 # ---------------------------------------------------------
-@router.get("/{org_id}")
+@router.get("/{org_id:int}")
 def get_org(org_id: int, db: Session = Depends(get_db)):
     org = crud.get_org(db, org_id)
     if not org:

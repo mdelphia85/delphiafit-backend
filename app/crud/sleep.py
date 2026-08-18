@@ -37,7 +37,7 @@ def update_sleep_log(db: Session, log_id: int, data: SleepLogUpdate) -> Optional
     if not log:
         return None
 
-    for field, value in data.dict(exclude_unset=True).items():
+    for field, value in data.model_dump(exclude_unset=True).items():
         setattr(log, field, value)
 
     db.commit()

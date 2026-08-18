@@ -37,7 +37,7 @@ def update_periodization_block(db: Session, block_id: int, data: PeriodizationBl
     if not block:
         return None
 
-    for field, value in data.dict(exclude_unset=True).items():
+    for field, value in data.model_dump(exclude_unset=True).items():
         setattr(block, field, value)
 
     db.commit()

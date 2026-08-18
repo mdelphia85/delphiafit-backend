@@ -36,7 +36,7 @@ class ItemCreate(BaseModel):
 # ---------------------------------------------------------
 @router.post("/create")
 def create_loadout(data: LoadoutCreate, db: Session = Depends(get_db)):
-    return crud.create_loadout(db, data.dict())
+    return crud.create_loadout(db, data.model_dump())
 
 
 @router.get("/list/{user_id}")
@@ -57,7 +57,7 @@ def get_loadout(loadout_id: int, db: Session = Depends(get_db)):
 # ---------------------------------------------------------
 @router.post("/item")
 def add_item(data: ItemCreate, db: Session = Depends(get_db)):
-    item = crud.add_item(db, data.dict())
+    item = crud.add_item(db, data.model_dump())
 
     # Recalculate totals
     items = crud.list_items(db, data.loadout_id)

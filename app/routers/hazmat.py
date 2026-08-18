@@ -48,7 +48,7 @@ class OperationClose(BaseModel):
 
 @router.post("/operation")
 def create_operation(data: OperationCreate, db: Session = Depends(get_db)):
-    return crud.create_operation(db, data.dict())
+    return crud.create_operation(db, data.model_dump())
 
 
 @router.get("/operation/list")
@@ -74,7 +74,7 @@ def close_operation(op_id: int, data: OperationClose, db: Session = Depends(get_
 
 @router.post("/zone")
 def add_zone(data: ZoneCreate, db: Session = Depends(get_db)):
-    return crud.add_zone(db, data.dict())
+    return crud.add_zone(db, data.model_dump())
 
 
 @router.get("/zone/{operation_id}")
@@ -84,7 +84,7 @@ def list_zones(operation_id: int, db: Session = Depends(get_db)):
 
 @router.post("/resource")
 def add_resource(data: ResourceCreate, db: Session = Depends(get_db)):
-    return crud.add_resource(db, data.dict())
+    return crud.add_resource(db, data.model_dump())
 
 
 @router.get("/resource/{operation_id}")
@@ -94,7 +94,7 @@ def list_resources(operation_id: int, db: Session = Depends(get_db)):
 
 @router.post("/exposure")
 def log_exposure(data: ExposureCreate, db: Session = Depends(get_db)):
-    return crud.log_exposure(db, data.dict())
+    return crud.log_exposure(db, data.model_dump())
 
 
 @router.get("/exposure/{operation_id}")

@@ -21,8 +21,6 @@ class AdminLogin(BaseModel):
 # -----------------------------
 @router.post("/login")
 def admin_login(data: AdminLogin, db: Session = Depends(get_db)):
-    print("ADMIN LOGIN ROUTE HIT")  # TEMP DEBUG
-
     user = db.query(User).filter(User.email == data.email).first()
 
     if not user or not verify_password(data.password, user.hashed_password):
@@ -37,7 +35,7 @@ def admin_login(data: AdminLogin, db: Session = Depends(get_db)):
             detail="Not an admin"
         )
 
-    token = create_access_token({"sub": user.email, "is_admin": True})
+    token = create_access_token({"sub": str(user.id), "email": user.email, "is_admin": True})
 
     return {
         "access_token": token,
@@ -52,9 +50,8 @@ def admin_me(
     token_data: dict = Depends(decode_access_token),
     db: Session = Depends(get_db)
 ):
-    print("ADMIN ME ROUTE HIT")  # TEMP DEBUG
-
-    email = token_data.get("sub")
+    user_id = token_data.get("sub")
+    email = token_data.get("email")
     is_admin = token_data.get("is_admin")
 
     if not email or not is_admin:
@@ -63,7 +60,7 @@ def admin_me(
             detail="Invalid admin token"
         )
 
-    user = db.query(User).filter(User.email == email).first()
+    user = db.query(User).filter(User.id == int(user_id)).first() if user_id else None
 
     if not user:
         raise HTTPException(
@@ -80,12 +77,22 @@ def admin_me(
 # -----------------------------
 # Admin-only dependency
 # -----------------------------
-def verify_admin(token_data: dict = Depends(decode_access_token)):
-    print("VERIFY ADMIN DEPENDENCY HIT")  # TEMP DEBUG
+def verify_admin(
+    token_data: dict = Depends(decode_access_token),
+    db: Session = Depends(get_db),
+):
+    try:
+        user_id = int(token_data.get("sub"))
+    except (TypeError, ValueError):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid admin token",
+        )
 
-    if not token_data.get("is_admin"):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not token_data.get("is_admin") or not user or not user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin access required"
+            detail="Admin access required",
         )
     return token_data

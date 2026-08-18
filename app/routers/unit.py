@@ -41,7 +41,7 @@ class CapabilityCreate(BaseModel):
 # ---------------------------------------------------------
 @router.post("/create")
 def create_unit(data: UnitCreate, db: Session = Depends(get_db)):
-    return crud.create_unit(db, data.dict())
+    return crud.create_unit(db, data.model_dump())
 
 
 @router.get("/list")
@@ -62,7 +62,7 @@ def get_unit(unit_id: int, db: Session = Depends(get_db)):
 # ---------------------------------------------------------
 @router.post("/member")
 def add_member(data: MemberCreate, db: Session = Depends(get_db)):
-    return crud.add_member(db, data.dict())
+    return crud.add_member(db, data.model_dump())
 
 
 @router.get("/member/{unit_id}")
@@ -75,7 +75,7 @@ def list_members(unit_id: int, db: Session = Depends(get_db)):
 # ---------------------------------------------------------
 @router.post("/capability")
 def add_capability(data: CapabilityCreate, db: Session = Depends(get_db)):
-    return crud.add_capability(db, data.dict())
+    return crud.add_capability(db, data.model_dump())
 
 
 @router.get("/capability/{unit_id}")

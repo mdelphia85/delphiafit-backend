@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
 
-from app.database import get_db
+from app.database.connection import get_db
 from app.crud.competition import CompetitionCRUD
 
 router = APIRouter(prefix="/competition", tags=["Competition"])
@@ -26,10 +26,10 @@ class CompetitionUpdate(BaseModel):
 
 @router.post("/create")
 def create_competition(data: CompetitionCreate, db: Session = Depends(get_db)):
-    return crud.create_competition(db, data.dict())
+    return crud.create_competition(db, data.model_dump())
 
 
-@router.get("/{competition_id}")
+@router.get("/{competition_id:int}")
 def get_competition(competition_id: int, db: Session = Depends(get_db)):
     comp = crud.get_competition(db, competition_id)
     if not comp:

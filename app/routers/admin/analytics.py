@@ -1,85 +1,63 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from collections import Counter
 from datetime import datetime, timedelta
 
-from app.database.connection import get_db
-from app.models.user import User
-from app.routers.admin.auth import verify_admin   # <-- ADD THIS
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
 
-# Optional models:
-# from app.models.daily_log import DailyLog
-# from app.models.workout_log import WorkoutLog
-# from app.models.sports_log import SportsLog
+from app.database.connection import get_db
+from app.models.daily_log import DailyLog
+from app.models.login_log import LoginLog
+from app.models.user import User
+from app.models.workout_log import WorkoutLog
+from app.routers.admin.auth import verify_admin
 
 router = APIRouter(prefix="/admin/analytics", tags=["Admin Analytics"])
 
 
 @router.get("")
-def get_admin_analytics(
-    db: Session = Depends(get_db),
-    admin=Depends(verify_admin)   # <-- PROTECT ROUTE
-):
-    today = datetime.utcnow().date()
-    week_ago = today - timedelta(days=7)
+def get_admin_analytics(db: Session = Depends(get_db), admin=Depends(verify_admin)):
+    now = datetime.utcnow()
+    week_ago = now - timedelta(days=7)
+    users = db.query(User).all()
+    email_by_id = {user.id: user.email for user in users}
 
-    # -----------------------------
-    # TOTAL USERS
-    # -----------------------------
-    total_users = db.query(User).count()
+    workouts = db.query(WorkoutLog).filter(WorkoutLog.date >= week_ago).all()
+    daily_logs = db.query(DailyLog).filter(DailyLog.date >= week_ago).all()
+    logins = db.query(LoginLog).filter(LoginLog.timestamp >= week_ago).all()
 
-    # -----------------------------
-    # NEW USERS (LAST 7 DAYS)
-    # -----------------------------
-    new_users = (
-        db.query(User)
-        .filter(User.created_at >= week_ago)
-        .count()
-    )
+    active_ids = {row.user_id for row in workouts} | {row.user_id for row in daily_logs} | {row.user_id for row in logins}
+    names = Counter((row.workout_type or row.manual_name or row.mode or "Workout") for row in workouts)
+    top_workouts = [{"label": label, "count": count} for label, count in names.most_common(8)]
 
-    # -----------------------------
-    # DAILY ACTIVE USERS (DAU)
-    # -----------------------------
-    try:
-        from app.models.daily_log import DailyLog
-        dau = (
-            db.query(DailyLog.user_id)
-            .filter(DailyLog.date == today)
-            .distinct()
-            .count()
-        )
-    except:
-        dau = 0
+    activity = []
+    for row in workouts:
+        activity.append({
+            "id": f"workout-{row.id}", "type": "workout",
+            "detail": row.workout_type or row.manual_name or "Workout logged",
+            "user": email_by_id.get(row.user_id, "Unknown user"),
+            "time": row.date.isoformat() if row.date else None,
+        })
+    for row in daily_logs:
+        activity.append({
+            "id": f"daily-{row.id}", "type": "daily", "detail": "Daily log saved",
+            "user": email_by_id.get(row.user_id, "Unknown user"),
+            "time": row.date.isoformat() if row.date else None,
+        })
+    activity.sort(key=lambda item: item.get("time") or "", reverse=True)
 
-    # -----------------------------
-    # WORKOUT COUNT (LAST 7 DAYS)
-    # -----------------------------
-    try:
-        from app.models.workout_log import WorkoutLog
-        workouts_last_week = (
-            db.query(WorkoutLog)
-            .filter(WorkoutLog.date >= week_ago)
-            .count()
-        )
-    except:
-        workouts_last_week = 0
-
-    # -----------------------------
-    # SPORTS SESSIONS (LAST 7 DAYS)
-    # -----------------------------
-    try:
-        from app.models.sports_log import SportsLog
-        sports_last_week = (
-            db.query(SportsLog)
-            .filter(SportsLog.date >= week_ago)
-            .count()
-        )
-    except:
-        sports_last_week = 0
-
+    overview = {
+        "totalUsers": len(users),
+        "activeUsers7d": len(active_ids),
+        "workoutsLogged7d": len(workouts),
+        "dailyLogs7d": len(daily_logs),
+    }
     return {
-        "total_users": total_users,
-        "new_users_last_7_days": new_users,
-        "daily_active_users": dau,
-        "workouts_last_7_days": workouts_last_week,
-        "sports_last_7_days": sports_last_week,
+        "overview": overview,
+        "top_workouts": top_workouts,
+        "recent_activity": activity[:30],
+        # Backwards-compatible flat metrics.
+        "total_users": overview["totalUsers"],
+        "daily_active_users": overview["activeUsers7d"],
+        "workouts_last_7_days": overview["workoutsLogged7d"],
+        "daily_logs_last_7_days": overview["dailyLogs7d"],
     }

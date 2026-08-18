@@ -1,43 +1,82 @@
-from typing import List, Optional
 from sqlalchemy.orm import Session
+from datetime import datetime
 
-from app.models.unit import Unit
-
-
-def create_unit(db: Session, data: dict) -> Unit:
-    unit = Unit(**data)
-    db.add(unit)
-    db.commit()
-    db.refresh(unit)
-    return unit
+from app.models.unit import Unit, UnitMember, UnitCapability
 
 
-def get_unit(db: Session, unit_id: int) -> Optional[Unit]:
-    return db.query(Unit).filter(Unit.id == unit_id).first()
+class UnitCRUD:
 
+    # ---------------------------------------------------------
+    # Units
+    # ---------------------------------------------------------
+    def create_unit(self, db: Session, data: dict):
+        unit = Unit(
+            name=data["name"],
+            unit_type=data["unit_type"],
+            description=data.get("description"),
+            readiness_score=0.0,
+            active=True,
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow()
+        )
+        db.add(unit)
+        db.commit()
+        db.refresh(unit)
+        return unit
 
-def get_units(db: Session) -> List[Unit]:
-    return db.query(Unit).all()
+    def list_units(self, db: Session):
+        return db.query(Unit).filter(Unit.active == True).all()
 
+    def get_unit(self, db: Session, unit_id: int):
+        return db.query(Unit).filter(Unit.id == unit_id).first()
 
-def update_unit(db: Session, unit_id: int, data: dict) -> Optional[Unit]:
-    unit = get_unit(db, unit_id)
-    if not unit:
-        return None
+    # ---------------------------------------------------------
+    # Members
+    # ---------------------------------------------------------
+    def add_member(self, db: Session, data: dict):
+        member = UnitMember(
+            unit_id=data["unit_id"],
+            user_id=data["user_id"],
+            role=data["role"],
+            notes=data.get("notes")
+        )
+        db.add(member)
+        db.commit()
+        db.refresh(member)
+        return member
 
-    for field, value in data.items():
-        setattr(unit, field, value)
+    def list_members(self, db: Session, unit_id: int):
+        return db.query(UnitMember).filter(
+            UnitMember.unit_id == unit_id
+        ).all()
 
-    db.commit()
-    db.refresh(unit)
-    return unit
+    # ---------------------------------------------------------
+    # Capabilities
+    # ---------------------------------------------------------
+    def add_capability(self, db: Session, data: dict):
+        cap = UnitCapability(
+            unit_id=data["unit_id"],
+            capability=data["capability"],
+            score=data.get("score", 0.0),
+            notes=data.get("notes")
+        )
+        db.add(cap)
+        db.commit()
+        db.refresh(cap)
+        return cap
 
+    def list_capabilities(self, db: Session, unit_id: int):
+        return db.query(UnitCapability).filter(
+            UnitCapability.unit_id == unit_id
+        ).all()
 
-def delete_unit(db: Session, unit_id: int) -> bool:
-    unit = get_unit(db, unit_id)
-    if not unit:
-        return False
-
-    db.delete(unit)
-    db.commit()
-    return True
+    # ---------------------------------------------------------
+    # Update readiness
+    # ---------------------------------------------------------
+    def update_readiness(self, db: Session, unit_id: int, readiness_score: float):
+        unit = self.get_unit(db, unit_id)
+        unit.readiness_score = readiness_score
+        unit.updated_at = datetime.utcnow()
+        db.commit()
+        db.refresh(unit)
+        return unit

@@ -6,9 +6,9 @@ from app.models.activity import ActivityLog
 from app.schemas.activity import ActivityLogCreate, ActivityLogUpdate
 
 
-def create_activity_log(db: Session, data: ActivityLogCreate) -> ActivityLog:
+def create_activity_log(db: Session, user_id: int, data: ActivityLogCreate) -> ActivityLog:
     activity = ActivityLog(
-        user_id=data.user_id,
+        user_id=user_id,
         activity_type=data.activity_type,
         duration_minutes=data.duration_minutes,
         calories_burned=data.calories_burned,
@@ -39,7 +39,7 @@ def update_activity_log(db: Session, activity_id: int, data: ActivityLogUpdate) 
     if not activity:
         return None
 
-    for field, value in data.dict(exclude_unset=True).items():
+    for field, value in data.model_dump(exclude_unset=True).items():
         setattr(activity, field, value)
 
     db.commit()

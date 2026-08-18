@@ -58,7 +58,7 @@ class RunComplete(BaseModel):
 # ---------------------------------------------------------
 @router.post("/create")
 def create_scenario(data: ScenarioCreate, db: Session = Depends(get_db)):
-    return crud.create_scenario(db, data.dict())
+    return crud.create_scenario(db, data.model_dump())
 
 
 @router.get("/list")
@@ -71,7 +71,7 @@ def list_scenarios(db: Session = Depends(get_db)):
 # ---------------------------------------------------------
 @router.post("/node")
 def add_node(data: NodeCreate, db: Session = Depends(get_db)):
-    return crud.add_node(db, data.dict())
+    return crud.add_node(db, data.model_dump())
 
 
 @router.get("/node/{scenario_id}")
@@ -84,7 +84,7 @@ def list_nodes(scenario_id: int, db: Session = Depends(get_db)):
 # ---------------------------------------------------------
 @router.post("/branch")
 def add_branch(data: BranchCreate, db: Session = Depends(get_db)):
-    return crud.add_branch(db, data.dict())
+    return crud.add_branch(db, data.model_dump())
 
 
 @router.get("/branch/{node_id}")
@@ -97,7 +97,7 @@ def list_branches(node_id: int, db: Session = Depends(get_db)):
 # ---------------------------------------------------------
 @router.post("/run/start")
 def start_run(data: RunStart, db: Session = Depends(get_db)):
-    return crud.start_run(db, data.dict())
+    return crud.start_run(db, data.model_dump())
 
 
 @router.post("/run/{run_id}/complete")
@@ -110,7 +110,7 @@ def complete_run(run_id: int, data: RunComplete, db: Session = Depends(get_db)):
 # ---------------------------------------------------------
 @router.post("/step")
 def add_step(data: StepCreate, db: Session = Depends(get_db)):
-    return crud.add_step(db, data.dict())
+    return crud.add_step(db, data.model_dump())
 
 
 @router.get("/step/{run_id}")

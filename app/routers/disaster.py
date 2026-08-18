@@ -44,7 +44,7 @@ class OperationClose(BaseModel):
 
 @router.post("/operation")
 def create_operation(data: OperationCreate, db: Session = Depends(get_db)):
-    return crud.create_operation(db, data.dict())
+    return crud.create_operation(db, data.model_dump())
 
 
 @router.get("/operation/list")
@@ -70,7 +70,7 @@ def close_operation(op_id: int, data: OperationClose, db: Session = Depends(get_
 
 @router.post("/sector")
 def add_sector(data: SectorCreate, db: Session = Depends(get_db)):
-    return crud.add_sector(db, data.dict())
+    return crud.add_sector(db, data.model_dump())
 
 
 @router.get("/sector/{operation_id}")
@@ -80,7 +80,7 @@ def list_sectors(operation_id: int, db: Session = Depends(get_db)):
 
 @router.post("/resource")
 def add_resource(data: ResourceCreate, db: Session = Depends(get_db)):
-    return crud.add_resource(db, data.dict())
+    return crud.add_resource(db, data.model_dump())
 
 
 @router.get("/resource/{operation_id}")

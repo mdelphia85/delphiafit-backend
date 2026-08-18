@@ -6,9 +6,9 @@ from app.models.body_metrics import BodyMetrics
 from app.schemas.body_metrics import BodyMetricsCreate, BodyMetricsUpdate
 
 
-def create_body_metrics(db: Session, data: BodyMetricsCreate) -> BodyMetrics:
+def create_body_metrics(db: Session, user_id: int, data: BodyMetricsCreate) -> BodyMetrics:
     metrics = BodyMetrics(
-        user_id=data.user_id,
+        user_id=user_id,
         height_cm=data.height_cm,
         weight_kg=data.weight_kg,
         body_fat_percent=data.body_fat_percent,
@@ -42,7 +42,7 @@ def update_body_metrics(db: Session, metrics_id: int, data: BodyMetricsUpdate) -
     if not metrics:
         return None
 
-    for field, value in data.dict(exclude_unset=True).items():
+    for field, value in data.model_dump(exclude_unset=True).items():
         setattr(metrics, field, value)
 
     db.commit()

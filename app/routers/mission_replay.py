@@ -43,7 +43,7 @@ class AnnotationCreate(BaseModel):
 # ---------------------------------------------------------
 @router.post("/start")
 def start_replay(data: ReplayStart, db: Session = Depends(get_db)):
-    return crud.start_replay(db, data.dict())
+    return crud.start_replay(db, data.model_dump())
 
 
 @router.post("/{replay_id}/complete")
@@ -64,7 +64,7 @@ def get_replay(replay_id: int, db: Session = Depends(get_db)):
 # ---------------------------------------------------------
 @router.post("/step")
 def add_step(data: StepCreate, db: Session = Depends(get_db)):
-    return crud.add_step(db, data.dict())
+    return crud.add_step(db, data.model_dump())
 
 
 @router.get("/step/{replay_id}")
@@ -77,7 +77,7 @@ def list_steps(replay_id: int, db: Session = Depends(get_db)):
 # ---------------------------------------------------------
 @router.post("/annotation")
 def add_annotation(data: AnnotationCreate, db: Session = Depends(get_db)):
-    return crud.add_annotation(db, data.dict())
+    return crud.add_annotation(db, data.model_dump())
 
 
 @router.get("/annotation/{replay_id}")

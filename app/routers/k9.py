@@ -36,7 +36,7 @@ class DeploymentCreate(BaseModel):
 # ---------------------------------------------------------
 @router.post("/create")
 def create_k9(data: K9Create, db: Session = Depends(get_db)):
-    return crud.create_k9(db, data.dict())
+    return crud.create_k9(db, data.model_dump())
 
 
 # ---------------------------------------------------------
@@ -52,7 +52,7 @@ def list_k9(db: Session = Depends(get_db)):
 # ---------------------------------------------------------
 @router.post("/deploy")
 def log_deployment(data: DeploymentCreate, db: Session = Depends(get_db)):
-    return crud.log_deployment(db, data.dict())
+    return crud.log_deployment(db, data.model_dump())
 
 
 # ---------------------------------------------------------

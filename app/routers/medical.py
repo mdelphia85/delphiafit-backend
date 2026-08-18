@@ -2,8 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
+from datetime import datetime
 
-from app.database import get_db
+from app.database.connection import get_db
 from app.crud.medical import MedicalCRUD
 
 router = APIRouter(prefix="/medical", tags=["Medical"])
@@ -19,7 +20,7 @@ class InjuryCreate(BaseModel):
     type: str
     severity: str
     description: Optional[str] = None
-    occurred_at: str
+    occurred_at: datetime
 
 
 class PTCreate(BaseModel):
@@ -32,9 +33,8 @@ class PTCreate(BaseModel):
 
 class RecoveryCreate(BaseModel):
     injury_id: int
-    stage: str
-    instructions: Optional[str] = None
-    return_to_play_clearance: Optional[bool] = False
+    name: str
+    description: Optional[str] = None
 
 
 # ---------------------------------------------------------
@@ -43,7 +43,7 @@ class RecoveryCreate(BaseModel):
 @router.post("/injury/log")
 def log_injury(data: InjuryCreate, db: Session = Depends(get_db)):
     try:
-        return crud.log_injury(db, data.dict())
+        return crud.log_injury(db, data.model_dump())
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -75,7 +75,7 @@ def resolve_injury(injury_id: int, db: Session = Depends(get_db)):
 @router.post("/pt/create")
 def create_pt_plan(data: PTCreate, db: Session = Depends(get_db)):
     try:
-        return crud.create_pt_plan(db, data.dict())
+        return crud.create_pt_plan(db, data.model_dump())
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -91,7 +91,7 @@ def list_pt_plans(injury_id: int, db: Session = Depends(get_db)):
 @router.post("/recovery/create")
 def create_recovery_protocol(data: RecoveryCreate, db: Session = Depends(get_db)):
     try:
-        return crud.create_recovery_protocol(db, data.dict())
+        return crud.create_recovery_protocol(db, data.model_dump())
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 

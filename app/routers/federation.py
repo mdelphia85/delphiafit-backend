@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
 
-from app.database import get_db
+from app.database.connection import get_db
 from app.crud.federation import FederationCRUD
 
 router = APIRouter(prefix="/federation", tags=["Federation"])
@@ -40,7 +40,7 @@ class LicensingUpdate(BaseModel):
 @router.post("/create")
 def create_federation(data: FederationCreate, db: Session = Depends(get_db)):
     try:
-        return crud.create_federation(db, data.dict())
+        return crud.create_federation(db, data.model_dump())
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -48,7 +48,7 @@ def create_federation(data: FederationCreate, db: Session = Depends(get_db)):
 # ---------------------------------------------------------
 # Get Federation by ID
 # ---------------------------------------------------------
-@router.get("/{federation_id}")
+@router.get("/{federation_id:int}")
 def get_federation(federation_id: int, db: Session = Depends(get_db)):
     fed = crud.get_federation(db, federation_id)
     if not fed:

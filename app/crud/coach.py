@@ -1,70 +1,149 @@
-from typing import List, Optional
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
+from datetime import datetime
 
 from app.models.coach import Coach
+from app.models.invite import Invite
+from app.models.team import Team
+from app.models.client import Client
 
 
 class CoachCRUD:
 
-    def create_coach(self, db: Session, email: str, name: str,
-                     organization: Optional[str], role: str) -> Coach:
+    # ---------------------------------------------------------
+    # Create Coach
+    # ---------------------------------------------------------
+    def create_coach(self, db: Session, email: str, name: str, organization: str = None, role: str = "coach"):
         coach = Coach(
             email=email,
             name=name,
             organization=organization,
-            role=role
+            role=role,
+            is_active=True,
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow()
         )
-        db.add(coach)
-        db.commit()
-        db.refresh(coach)
-        return coach
 
-    def get_coach(self, db: Session, coach_id: int) -> Optional[Coach]:
+        try:
+            db.add(coach)
+            db.commit()
+            db.refresh(coach)
+            return coach
+        except IntegrityError:
+            db.rollback()
+            raise ValueError("A coach with this email already exists.")
+
+    # ---------------------------------------------------------
+    # Get Coach by ID
+    # ---------------------------------------------------------
+    def get_coach(self, db: Session, coach_id: int):
         return db.query(Coach).filter(Coach.id == coach_id).first()
 
-    def get_coach_by_email(self, db: Session, email: str) -> Optional[Coach]:
+    # ---------------------------------------------------------
+    # Get Coach by Email (login)
+    # ---------------------------------------------------------
+    def get_coach_by_email(self, db: Session, email: str):
         return db.query(Coach).filter(Coach.email == email).first()
 
-    def get_coaches(self, db: Session) -> List[Coach]:
-        return db.query(Coach).all()
+    # ---------------------------------------------------------
+    # List All Coaches
+    # ---------------------------------------------------------
+    def list_coaches(self, db: Session):
+        return db.query(Coach).filter(Coach.is_active == True).all()
 
-    def update_coach(self, db: Session, coach_id: int, updates: dict) -> Optional[Coach]:
+    # ---------------------------------------------------------
+    # Update Coach
+    # ---------------------------------------------------------
+    def update_coach(self, db: Session, coach_id: int, updates: dict):
         coach = self.get_coach(db, coach_id)
         if not coach:
-            return None
+            raise ValueError("Coach not found.")
 
-        for field, value in updates.items():
-            setattr(coach, field, value)
+        for key, value in updates.items():
+            if hasattr(coach, key):
+                setattr(coach, key, value)
+
+        coach.updated_at = datetime.utcnow()
 
         db.commit()
         db.refresh(coach)
         return coach
 
-    def delete_coach(self, db: Session, coach_id: int) -> bool:
+    # ---------------------------------------------------------
+    # Deactivate Coach
+    # ---------------------------------------------------------
+    def deactivate_coach(self, db: Session, coach_id: int):
         coach = self.get_coach(db, coach_id)
         if not coach:
-            return False
+            raise ValueError("Coach not found.")
 
-        db.delete(coach)
+        coach.is_active = False
+        coach.updated_at = datetime.utcnow()
+
         db.commit()
-        return True
+        db.refresh(coach)
+        return coach
 
-    # -----------------------------
-    # Phase 4 Relationship Endpoints
-    # -----------------------------
+    # ---------------------------------------------------------
+    # Accept Invite → Create Client or Assistant Coach
+    # ---------------------------------------------------------
+    def accept_invite(self, db: Session, token: str, name: str):
+        invite = db.query(Invite).filter(Invite.token == token).first()
+        if not invite:
+            raise ValueError("Invalid invite token.")
 
+        if invite.accepted:
+            raise ValueError("Invite already accepted.")
+
+        if invite.expires_at and invite.expires_at < datetime.utcnow():
+            raise ValueError("Invite has expired.")
+
+        invite.accepted = True
+        invite.accepted_at = datetime.utcnow()
+
+        # Role determines what gets created
+        if invite.role == "client":
+            client = Client(
+                coach_id=invite.coach_id,
+                team_id=invite.team_id,
+                email=invite.email,
+                name=name,
+                status="active",
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow()
+            )
+            db.add(client)
+
+        else:
+            # assistant coach, recruiter, analyst, etc.
+            new_coach = Coach(
+                email=invite.email,
+                name=name,
+                organization=None,
+                role=invite.role,
+                is_active=True,
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow()
+            )
+            db.add(new_coach)
+
+        db.commit()
+        return {"message": "Invite accepted successfully."}
+
+    # ---------------------------------------------------------
+    # Get Coach Teams
+    # ---------------------------------------------------------
     def get_coach_teams(self, db: Session, coach_id: int):
         coach = self.get_coach(db, coach_id)
         if not coach:
-            return None
+            raise ValueError("Coach not found.")
         return coach.teams
 
+    # ---------------------------------------------------------
+    # Get Coach Clients
+    # ---------------------------------------------------------
     def get_coach_clients(self, db: Session, coach_id: int):
         coach = self.get_coach(db, coach_id)
         if not coach:
-            return None
+            raise ValueError("Coach not found.")
         return coach.clients
-
-    def accept_invite(self, db: Session, token: str, name: str):
-        # Placeholder — implement once Invite model is aligned
-        raise ValueError("Invite acceptance not implemented yet.")

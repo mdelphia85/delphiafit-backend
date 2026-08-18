@@ -51,7 +51,7 @@ class OperationClose(BaseModel):
 
 @router.post("/operation")
 def create_operation(data: OperationCreate, db: Session = Depends(get_db)):
-    return crud.create_operation(db, data.dict())
+    return crud.create_operation(db, data.model_dump())
 
 
 @router.get("/operation/list")
@@ -85,7 +85,7 @@ def close_operation(op_id: int, data: OperationClose, db: Session = Depends(get_
 
 @router.post("/division")
 def add_division(data: DivisionCreate, db: Session = Depends(get_db)):
-    return crud.add_division(db, data.dict())
+    return crud.add_division(db, data.model_dump())
 
 
 @router.get("/division/{operation_id}")
@@ -95,7 +95,7 @@ def list_divisions(operation_id: int, db: Session = Depends(get_db)):
 
 @router.post("/resource")
 def add_resource(data: ResourceCreate, db: Session = Depends(get_db)):
-    return crud.add_resource(db, data.dict())
+    return crud.add_resource(db, data.model_dump())
 
 
 @router.get("/resource/{operation_id}")
@@ -105,7 +105,7 @@ def list_resources(operation_id: int, db: Session = Depends(get_db)):
 
 @router.post("/event")
 def log_event(data: EventCreate, db: Session = Depends(get_db)):
-    return crud.log_event(db, data.dict())
+    return crud.log_event(db, data.model_dump())
 
 
 @router.get("/event/{operation_id}")

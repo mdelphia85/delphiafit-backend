@@ -1,71 +1,64 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
+
 from app.database.connection import get_db
-from app.routers.admin.auth import verify_admin   # <-- ADD THIS
+from app.models.daily_log import DailyLog
+from app.models.login_log import LoginLog
+from app.models.sports_log import SportsLog
+from app.models.user import User
+from app.models.workout_log import WorkoutLog
+from app.routers.admin.auth import verify_admin
 
 router = APIRouter(prefix="/admin/logs", tags=["Admin Logs"])
 
 
+def _email_map(db: Session) -> dict[int, str]:
+    return {user.id: user.email for user in db.query(User).all()}
+
+
 @router.get("")
 def get_all_logs(
+    type: str | None = Query(default=None),
     db: Session = Depends(get_db),
-    admin=Depends(verify_admin)   # <-- PROTECT ROUTE
+    admin=Depends(verify_admin),
 ):
-    logs = {}
+    emails = _email_map(db)
+    rows: list[dict] = []
 
-    # Workout Logs
-    try:
-        from app.models.workout_log import WorkoutLog
-        logs["workout_logs"] = (
-            db.query(WorkoutLog)
-            .order_by(WorkoutLog.date.desc())
-            .all()
-        )
-    except:
-        logs["workout_logs"] = []
+    for log in db.query(WorkoutLog).order_by(WorkoutLog.date.desc()).limit(250).all():
+        rows.append({
+            "id": f"workout-{log.id}",
+            "type": "workout",
+            "message": f"Workout logged: {log.workout_type or log.manual_name or log.mode}",
+            "user_email": emails.get(log.user_id),
+            "timestamp": log.date.isoformat() if log.date else None,
+        })
+    for log in db.query(DailyLog).order_by(DailyLog.date.desc()).limit(250).all():
+        rows.append({
+            "id": f"daily-{log.id}",
+            "type": "daily",
+            "message": "Daily progress log saved",
+            "user_email": emails.get(log.user_id),
+            "timestamp": log.date.isoformat() if log.date else None,
+        })
+    for log in db.query(LoginLog).order_by(LoginLog.timestamp.desc()).limit(250).all():
+        rows.append({
+            "id": f"auth-{log.id}",
+            "type": "auth",
+            "message": "User login",
+            "user_email": emails.get(log.user_id),
+            "timestamp": log.timestamp.isoformat() if log.timestamp else None,
+        })
+    for log in db.query(SportsLog).order_by(SportsLog.date.desc()).limit(250).all():
+        rows.append({
+            "id": f"sports-{log.id}",
+            "type": "workout",
+            "message": f"Sports session logged: {log.sport}",
+            "user_email": emails.get(log.user_id),
+            "timestamp": log.date.isoformat() if log.date else None,
+        })
 
-    # Sports Logs
-    try:
-        from app.models.sports_log import SportsLog
-        logs["sports_logs"] = (
-            db.query(SportsLog)
-            .order_by(SportsLog.date.desc())
-            .all()
-        )
-    except:
-        logs["sports_logs"] = []
-
-    # Free Training Logs
-    try:
-        from app.models.free_training_log import FreeTrainingLog
-        logs["free_training_logs"] = (
-            db.query(FreeTrainingLog)
-            .order_by(FreeTrainingLog.date.desc())
-            .all()
-        )
-    except:
-        logs["free_training_logs"] = []
-
-    # Daily Logs
-    try:
-        from app.models.daily_log import DailyLog
-        logs["daily_logs"] = (
-            db.query(DailyLog)
-            .order_by(DailyLog.date.desc())
-            .all()
-        )
-    except:
-        logs["daily_logs"] = []
-
-    # Login Logs
-    try:
-        from app.models.login_log import LoginLog
-        logs["login_logs"] = (
-            db.query(LoginLog)
-            .order_by(LoginLog.timestamp.desc())
-            .all()
-        )
-    except:
-        logs["login_logs"] = []
-
-    return logs
+    rows.sort(key=lambda item: item.get("timestamp") or "", reverse=True)
+    if type and type != "all":
+        rows = [row for row in rows if row["type"] == type]
+    return {"logs": rows[:500]}

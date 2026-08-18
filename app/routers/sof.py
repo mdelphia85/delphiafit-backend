@@ -46,7 +46,7 @@ class EvaluationCreate(BaseModel):
 # ---------------------------------------------------------
 @router.post("/pipeline")
 def create_pipeline(data: PipelineCreate, db: Session = Depends(get_db)):
-    return crud.create_pipeline(db, data.dict())
+    return crud.create_pipeline(db, data.model_dump())
 
 
 @router.get("/pipeline/list")
@@ -59,7 +59,7 @@ def list_pipelines(db: Session = Depends(get_db)):
 # ---------------------------------------------------------
 @router.post("/event")
 def add_event(data: EventCreate, db: Session = Depends(get_db)):
-    return crud.add_event(db, data.dict())
+    return crud.add_event(db, data.model_dump())
 
 
 @router.get("/event/{pipeline_id}")
@@ -72,7 +72,7 @@ def list_events(pipeline_id: int, db: Session = Depends(get_db)):
 # ---------------------------------------------------------
 @router.post("/candidate")
 def add_candidate(data: CandidateCreate, db: Session = Depends(get_db)):
-    return crud.add_candidate(db, data.dict())
+    return crud.add_candidate(db, data.model_dump())
 
 
 @router.get("/candidate/{pipeline_id}")
@@ -85,7 +85,7 @@ def list_candidates(pipeline_id: int, db: Session = Depends(get_db)):
 # ---------------------------------------------------------
 @router.post("/evaluation")
 def evaluate(data: EvaluationCreate, db: Session = Depends(get_db)):
-    return crud.evaluate(db, data.dict())
+    return crud.evaluate(db, data.model_dump())
 
 
 @router.get("/evaluation/{candidate_id}")

@@ -38,12 +38,8 @@ def get_admin_dashboard(
     except Exception:
         unread_messages = 0
 
-    # Error / activity logs (if Log model exists)
-    try:
-        from app.models.logs import LogEntry
-        total_logs = db.query(LogEntry).count()
-    except Exception:
-        total_logs = 0
+    # No standalone LogEntry model exists in this backend.
+    total_logs = 0
 
     return {
         "total_users": total_users,

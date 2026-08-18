@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional
 
-from app.database import get_db
+from app.database.connection import get_db
 from app.services.hardware_sync import HardwareSyncService
 
 router = APIRouter(prefix="/hardware", tags=["Hardware"])
@@ -32,7 +32,7 @@ class DeviceSync(BaseModel):
 @router.post("/link")
 def link_device(data: DeviceLink, db: Session = Depends(get_db)):
     try:
-        return sync_service.link_device(db, data.dict())
+        return sync_service.link_device(db, data.model_dump())
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
