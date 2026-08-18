@@ -120,8 +120,7 @@ app.include_router(pr.router)
 app.include_router(periodization.router)
 app.include_router(rep_logs.router)
 
-# Social
-app.include_router(social.router)
+
 
 # AI
 app.include_router(ai.router)
