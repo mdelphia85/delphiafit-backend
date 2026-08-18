@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
 
-from app.database import get_db
+from app.database.connection import get_db
 from app.crud.team import TeamCRUD
 
 router = APIRouter(prefix="/team", tags=["Team"])
