@@ -15,6 +15,7 @@ class SearchRescueCRUD:
             operation_type=data["operation_type"],
             location=data.get("location"),
             commander_id=data["commander_id"],
+            owner_user_id=data["owner_user_id"],
             notes=data.get("notes"),
             started_at=datetime.utcnow()
         )
@@ -26,8 +27,8 @@ class SearchRescueCRUD:
     # ---------------------------------------------------------
     # List Operations
     # ---------------------------------------------------------
-    def list_operations(self, db: Session):
-        return db.query(SearchRescue).all()
+    def list_operations(self, db: Session, user_id: int):
+        return db.query(SearchRescue).filter(SearchRescue.owner_user_id == user_id).all()
 
     # ---------------------------------------------------------
     # Add Team
@@ -47,6 +48,9 @@ class SearchRescueCRUD:
     # ---------------------------------------------------------
     # Add Victim
     # ---------------------------------------------------------
+    def list_teams(self, db: Session, operation_id: int):
+        return db.query(SARTeam).filter(SARTeam.operation_id == operation_id).order_by(SARTeam.id.asc()).all()
+
     def add_victim(self, db: Session, data: dict):
         victim = SARVictim(
             operation_id=data["operation_id"],
@@ -64,5 +68,5 @@ class SearchRescueCRUD:
     # ---------------------------------------------------------
     # Get Operation Details
     # ---------------------------------------------------------
-    def get_operation(self, db: Session, op_id: int):
-        return db.query(SearchRescue).filter(SearchRescue.id == op_id).first()
+    def get_operation(self, db: Session, op_id: int, user_id: int):
+        return db.query(SearchRescue).filter(SearchRescue.id == op_id, SearchRescue.owner_user_id == user_id).first()

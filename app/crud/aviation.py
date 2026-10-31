@@ -13,6 +13,7 @@ class AviationCRUD:
             aircraft=data.get("aircraft"),
             location=data.get("location"),
             mission_commander_id=data["mission_commander_id"],
+            owner_user_id=data["owner_user_id"],
             notes=data.get("notes"),
             started_at=datetime.utcnow()
         )
@@ -21,14 +22,14 @@ class AviationCRUD:
         db.refresh(op)
         return op
 
-    def list_operations(self, db: Session):
-        return db.query(AviationOperation).all()
+    def list_operations(self, db: Session, user_id: int):
+        return db.query(AviationOperation).filter(AviationOperation.owner_user_id == user_id).all()
 
-    def get_operation(self, db: Session, op_id: int):
-        return db.query(AviationOperation).filter(AviationOperation.id == op_id).first()
+    def get_operation(self, db: Session, op_id: int, user_id: int):
+        return db.query(AviationOperation).filter(AviationOperation.id == op_id, AviationOperation.owner_user_id == user_id).first()
 
-    def close_operation(self, db: Session, op_id: int, status: str = "completed"):
-        op = self.get_operation(db, op_id)
+    def close_operation(self, db: Session, op_id: int, user_id: int, status: str = "completed"):
+        op = self.get_operation(db, op_id, user_id)
         if not op:
             raise ValueError("Operation not found.")
         op.status = status

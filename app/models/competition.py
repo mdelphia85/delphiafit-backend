@@ -17,6 +17,7 @@ class Competition(Base):
 
     federation_id = Column(Integer, ForeignKey("federations.id"), nullable=True)
     season_id = Column(Integer, ForeignKey("seasons.id"), nullable=True)
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
 
     is_virtual = Column(Boolean, default=False)
     is_active = Column(Boolean, default=True)

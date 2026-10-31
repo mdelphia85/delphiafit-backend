@@ -33,6 +33,7 @@ from . import listing as _listing
 from . import live as _live
 from . import loadout as _loadout
 from . import login_log as _login_log
+from . import logs as _logs
 from . import macros as _macros
 from . import maritime as _maritime
 from . import meals as _meals
@@ -77,3 +78,15 @@ from . import workout_log as _workout_log
 from . import user_profile as _user_profile
 from . import nutrition_settings as _nutrition_settings
 from . import coach_team_membership as _coach_team_membership
+from . import coach_message as _coach_message
+from . import plan_assignment as _plan_assignment
+
+from . import tactical_progress as _tactical_progress
+
+from . import user_data_record as _user_data_record
+
+from . import org_membership as _org_membership
+
+from . import ai_record as _ai_record
+
+from . import community_area as _community_area

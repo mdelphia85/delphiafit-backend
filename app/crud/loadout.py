@@ -31,9 +31,9 @@ class LoadoutCRUD:
             Loadout.user_id == user_id
         ).all()
 
-    def get_loadout(self, db: Session, loadout_id: int):
+    def get_loadout(self, db: Session, loadout_id: int, user_id: int):
         return db.query(Loadout).filter(
-            Loadout.id == loadout_id
+            Loadout.id == loadout_id, Loadout.user_id == user_id
         ).first()
 
     # ---------------------------------------------------------
@@ -60,9 +60,9 @@ class LoadoutCRUD:
     # ---------------------------------------------------------
     # Update loadout totals
     # ---------------------------------------------------------
-    def update_totals(self, db: Session, loadout_id: int, total_weight: float,
+    def update_totals(self, db: Session, loadout_id: int, user_id: int, total_weight: float,
                       mobility_score: float, endurance_score: float):
-        loadout = self.get_loadout(db, loadout_id)
+        loadout = self.get_loadout(db, loadout_id, user_id)
         loadout.total_weight = total_weight
         loadout.mobility_score = mobility_score
         loadout.endurance_score = endurance_score

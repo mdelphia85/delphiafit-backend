@@ -14,6 +14,7 @@ class DisasterCRUD:
             location=data.get("location"),
             severity=data.get("severity"),
             incident_commander_id=data["incident_commander_id"],
+            owner_user_id=data["owner_user_id"],
             notes=data.get("notes"),
             started_at=datetime.utcnow()
         )
@@ -23,16 +24,16 @@ class DisasterCRUD:
         return op
 
     # List operations
-    def list_operations(self, db: Session):
-        return db.query(DisasterOperation).all()
+    def list_operations(self, db: Session, user_id: int):
+        return db.query(DisasterOperation).filter(DisasterOperation.owner_user_id == user_id).all()
 
     # Get single operation
-    def get_operation(self, db: Session, op_id: int):
-        return db.query(DisasterOperation).filter(DisasterOperation.id == op_id).first()
+    def get_operation(self, db: Session, op_id: int, user_id: int):
+        return db.query(DisasterOperation).filter(DisasterOperation.id == op_id, DisasterOperation.owner_user_id == user_id).first()
 
     # Close operation
-    def close_operation(self, db: Session, op_id: int, status: str = "completed"):
-        op = self.get_operation(db, op_id)
+    def close_operation(self, db: Session, op_id: int, user_id: int, status: str = "completed"):
+        op = self.get_operation(db, op_id, user_id)
         if not op:
             raise ValueError("Operation not found.")
         op.status = status

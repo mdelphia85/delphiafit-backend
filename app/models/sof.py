@@ -9,6 +9,7 @@ class SOFPipeline(Base):
     __tablename__ = "sof_pipelines"
 
     id = Column(Integer, primary_key=True, index=True)
+    owner_user_id = Column(Integer, nullable=True, index=True)
 
     name = Column(String, nullable=False)          # SFAS, BUD/S, RASP, PJ/CCT, MARSOC
     branch = Column(String, nullable=False)        # army, navy, air_force, marines

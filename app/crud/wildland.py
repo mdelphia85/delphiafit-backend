@@ -13,6 +13,7 @@ class WildlandCRUD:
             location=data.get("location"),
             containment=data.get("containment", 0.0),
             incident_commander_id=data["incident_commander_id"],
+            owner_user_id=data["owner_user_id"],
             notes=data.get("notes"),
             started_at=datetime.utcnow()
         )
@@ -21,14 +22,14 @@ class WildlandCRUD:
         db.refresh(op)
         return op
 
-    def list_operations(self, db: Session):
-        return db.query(WildlandOperation).all()
+    def list_operations(self, db: Session, user_id: int):
+        return db.query(WildlandOperation).filter(WildlandOperation.owner_user_id == user_id).all()
 
-    def get_operation(self, db: Session, op_id: int):
-        return db.query(WildlandOperation).filter(WildlandOperation.id == op_id).first()
+    def get_operation(self, db: Session, op_id: int, user_id: int):
+        return db.query(WildlandOperation).filter(WildlandOperation.id == op_id, WildlandOperation.owner_user_id == user_id).first()
 
-    def update_containment(self, db: Session, op_id: int, containment: float):
-        op = self.get_operation(db, op_id)
+    def update_containment(self, db: Session, op_id: int, user_id: int, containment: float):
+        op = self.get_operation(db, op_id, user_id)
         if not op:
             raise ValueError("Operation not found.")
         op.containment = containment
@@ -36,8 +37,8 @@ class WildlandCRUD:
         db.refresh(op)
         return op
 
-    def close_operation(self, db: Session, op_id: int, status="completed"):
-        op = self.get_operation(db, op_id)
+    def close_operation(self, db: Session, op_id: int, user_id: int, status="completed"):
+        op = self.get_operation(db, op_id, user_id)
         if not op:
             raise ValueError("Operation not found.")
         op.status = status

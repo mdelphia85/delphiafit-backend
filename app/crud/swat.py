@@ -13,6 +13,7 @@ class SWATCRUD:
         pipeline = SWATPipeline(
             name=data["name"],
             agency=data["agency"],
+            owner_user_id=data["owner_user_id"],
             description=data.get("description"),
             created_at=datetime.utcnow(),
             updated_at=datetime.utcnow()
@@ -22,8 +23,9 @@ class SWATCRUD:
         db.refresh(pipeline)
         return pipeline
 
-    def list_pipelines(self, db: Session):
-        return db.query(SWATPipeline).filter(SWATPipeline.active == True).all()
+    def list_pipelines(self, db: Session, user_id: int):
+        from sqlalchemy import or_
+        return db.query(SWATPipeline).filter(SWATPipeline.active == True, or_(SWATPipeline.owner_user_id.is_(None), SWATPipeline.owner_user_id == user_id)).all()
 
     # ---------------------------------------------------------
     # Drills
@@ -60,9 +62,9 @@ class SWATCRUD:
         db.refresh(operator)
         return operator
 
-    def list_operators(self, db: Session, pipeline_id: int):
+    def list_operators(self, db: Session, pipeline_id: int, user_id: int):
         return db.query(SWATOperator).filter(
-            SWATOperator.pipeline_id == pipeline_id
+            SWATOperator.pipeline_id == pipeline_id, SWATOperator.user_id == user_id
         ).all()
 
     # ---------------------------------------------------------

@@ -9,6 +9,7 @@ class K9(Base):
     __tablename__ = "k9_units"
 
     id = Column(Integer, primary_key=True, index=True)
+    owner_user_id = Column(Integer, nullable=True, index=True)
 
     name = Column(String, nullable=False)
     breed = Column(String, nullable=True)

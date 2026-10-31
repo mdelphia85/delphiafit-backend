@@ -46,6 +46,7 @@ from app.routers import (
     nutrition_plan,
     nutrition_coach,
     social,
+    community_area,
     ai,
     live,
     coach,
@@ -79,6 +80,10 @@ from app.routers import (
     unit,
     staff,
     frontend_compat,
+    tactical_progress,
+    user_data,
+    insights,
+    account,
 )
 
 app = FastAPI(title="DelphiaFit Backend V2", redirect_slashes=False)
@@ -144,6 +149,7 @@ _v2_routers = [
     nutrition_plan.router,
     nutrition_coach.router,
     social.router,
+    community_area.router,
     ai.router,
     live.router,
     coach.router,
@@ -177,6 +183,10 @@ _v2_routers = [
     unit.router,
     staff.router,
     frontend_compat.router,
+    tactical_progress.router,
+    user_data.router,
+    insights.router,
+    account.router,
 ]
 
 for router in _v2_routers:

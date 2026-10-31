@@ -9,6 +9,7 @@ class MaritimeOperation(Base):
     __tablename__ = "maritime_operations"
 
     id = Column(Integer, primary_key=True, index=True)
+    owner_user_id = Column(Integer, nullable=True, index=True)
 
     name = Column(String, nullable=False)
     operation_type = Column(String, nullable=False)  # rescue, interdiction, boarding, dive, patrol

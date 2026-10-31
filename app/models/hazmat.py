@@ -9,6 +9,7 @@ class HazmatOperation(Base):
     __tablename__ = "hazmat_operations"
 
     id = Column(Integer, primary_key=True, index=True)
+    owner_user_id = Column(Integer, nullable=True, index=True)
 
     name = Column(String, nullable=False)
     incident_type = Column(String, nullable=False)  # chemical, biological, radiological, nuclear, hazmat

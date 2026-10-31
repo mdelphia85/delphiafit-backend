@@ -21,6 +21,7 @@ from app.models.plan import Plan
 from app.models.schedule import Schedule
 from app.models.team import Team
 from app.routers.admin.auth import verify_admin
+from app.routers.coach_hub import _client_plans, activity_by_email, unread_for_coach
 from app.services.email_delivery import send_coach_password_reset
 
 router = APIRouter(prefix="/coach", tags=["Coach"])
@@ -208,7 +209,9 @@ def coach_team_dashboard(
 
     if selected:
         clients = db.query(Client).filter(Client.team_id == selected.id, Client.status != "inactive").all()
-        active_programs = db.query(Plan).filter(Plan.team_id == selected.id, Plan.is_active.is_(True)).count()
+        active_programs = db.query(Plan).filter(
+            (Plan.team_id == selected.id) | (Plan.coach_id == coach.id), Plan.is_active.is_(True)
+        ).count()
         schedules = db.query(Schedule).filter(Schedule.team_id == selected.id).all()
     else:
         clients = db.query(Client).filter(Client.coach_id == coach.id, Client.status != "inactive").all()
@@ -221,22 +224,21 @@ def coach_team_dashboard(
         if schedule.start_time and schedule.end_time and schedule.start_time >= week_ago:
             weekly_hours += max(0.0, (schedule.end_time - schedule.start_time).total_seconds() / 3600)
 
+    activity = activity_by_email(db, [client.email for client in clients])
     client_rows = []
     for client in clients:
-        latest_plan = (
-            db.query(Plan)
-            .filter(Plan.client_id == client.id, Plan.is_active.is_(True))
-            .order_by(Plan.updated_at.desc())
-            .first()
-        )
+        assigned = _client_plans(db, client.id)
+        client_activity = activity.get(client.email, {"workouts_7d": 0, "active_days_7d": 0})
         client_rows.append(
             {
                 "id": client.id,
                 "name": client.name,
                 "email": client.email,
                 "status": (client.status or "active").title(),
-                "program": latest_plan.name if latest_plan else "No active program",
-                "progress": 0,
+                "program": assigned[0]["name"] if assigned else "No active program",
+                "progress": round(client_activity["active_days_7d"] / 7 * 100),
+                "workouts_7d": client_activity["workouts_7d"],
+                "active_days_7d": client_activity["active_days_7d"],
             }
         )
 
@@ -252,7 +254,7 @@ def coach_team_dashboard(
         "stats": {
             "totalClients": len(client_rows),
             "activePrograms": active_programs,
-            "messagesUnread": 0,
+            "messagesUnread": unread_for_coach(db, coach.id),
             "weeklyHours": round(weekly_hours, 1),
         },
         "clients": client_rows,

@@ -70,3 +70,14 @@ def send_client_invitation(email: str, token: str) -> bool:
     base = os.getenv("FRONTEND_URL", "https://delphiafit.com").rstrip("/")
     link = f"{base}/invite?token={token}"
     return _send_email(email, "Your DelphiaFit invitation", f"You have been invited to DelphiaFit:\n\n{link}")
+
+
+def send_coach_invitation(email: str, token: str) -> bool:
+    base = os.getenv("FRONTEND_URL", "https://delphiafit.com").rstrip("/")
+    link = f"{base}/invite?token={token}"
+    return _send_email(
+        email,
+        "You have been invited to coach on DelphiaFit",
+        f"Use this link to set up your DelphiaFit coach access:\n\n{link}",
+    )
+

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, ForeignKey
+from sqlalchemy import Boolean, Column, Integer, String, Text, ForeignKey
 from app.database.connection import Base
 
 class TacticalDrill(Base):
@@ -14,6 +14,7 @@ class TacticalDrill(Base):
     level = Column(String, nullable=True)
     duration = Column(String, nullable=True)
     notes = Column(Text, nullable=True)
+    completed = Column(Boolean, nullable=False, default=False)
 
     # Shared generator metadata
     intensity = Column(String, nullable=True)

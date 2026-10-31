@@ -9,6 +9,7 @@ class SWATPipeline(Base):
     __tablename__ = "swat_pipelines"
 
     id = Column(Integer, primary_key=True, index=True)
+    owner_user_id = Column(Integer, nullable=True, index=True)
 
     name = Column(String, nullable=False)          # SWAT Prep, SRT Prep, HRT Prep
     agency = Column(String, nullable=False)        # police, sheriff, federal

@@ -67,6 +67,9 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
             detail="Invalid email or password"
         )
 
+    if db_user.is_suspended:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account suspended")
+
     token = create_access_token({"sub": str(db_user.id), "email": db_user.email, "actor_type": "user"})
 
     db.add(LoginLog(user_id=db_user.id, timestamp=datetime.utcnow()))

@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.database.connection import get_db
 from app.models.admin_config import AdminConfigSetting
-from app.routers.admin.auth import verify_admin
+from app.routers.admin.auth import record_audit, verify_admin
 
 
 router = APIRouter(prefix="/admin", tags=["Admin Config"])
@@ -48,4 +48,5 @@ def save_admin_config(
 
     db.commit()
     db.refresh(row)
+    record_audit(db, admin, "config.update", "config", "global")
     return {"success": True, "data": row.data}

@@ -17,6 +17,7 @@ class MaritimeCRUD:
             location=data.get("location"),
             sea_state=data.get("sea_state"),
             commander_id=data["commander_id"],
+            owner_user_id=data["owner_user_id"],
             notes=data.get("notes"),
             started_at=datetime.utcnow()
         )
@@ -28,20 +29,20 @@ class MaritimeCRUD:
     # ---------------------------------------------------------
     # List Operations
     # ---------------------------------------------------------
-    def list_operations(self, db: Session):
-        return db.query(MaritimeOperation).all()
+    def list_operations(self, db: Session, user_id: int):
+        return db.query(MaritimeOperation).filter(MaritimeOperation.owner_user_id == user_id).all()
 
     # ---------------------------------------------------------
     # Get Operation
     # ---------------------------------------------------------
-    def get_operation(self, db: Session, op_id: int):
-        return db.query(MaritimeOperation).filter(MaritimeOperation.id == op_id).first()
+    def get_operation(self, db: Session, op_id: int, user_id: int):
+        return db.query(MaritimeOperation).filter(MaritimeOperation.id == op_id, MaritimeOperation.owner_user_id == user_id).first()
 
     # ---------------------------------------------------------
     # Close Operation
     # ---------------------------------------------------------
-    def close_operation(self, db: Session, op_id: int, status="completed"):
-        op = self.get_operation(db, op_id)
+    def close_operation(self, db: Session, op_id: int, user_id: int, status="completed"):
+        op = self.get_operation(db, op_id, user_id)
         if not op:
             raise ValueError("Operation not found.")
         op.status = status

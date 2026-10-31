@@ -14,4 +14,7 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",
         )
+    if payload.get("actor_type") == "coach":
+        # Coach tokens carry a coach id in `sub`; never let it act as a user id.
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User account required")
     return payload

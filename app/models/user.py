@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String, Boolean, DateTime
-from sqlalchemy.sql import func
+from sqlalchemy.sql import false, func
 from sqlalchemy.orm import relationship
 from app.database.connection import Base
 
@@ -12,6 +12,8 @@ class User(Base):
     hashed_password = Column(String, nullable=False)
     is_admin = Column(Boolean, default=False)
     streak = Column(Integer, default=0, nullable=False)
+    is_suspended = Column(Boolean, default=False, nullable=False, server_default=false())
+    suspended_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     password_reset_token_hash = Column(String, nullable=True)
     password_reset_expires_at = Column(DateTime, nullable=True)

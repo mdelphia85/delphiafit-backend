@@ -49,20 +49,7 @@ class HardwareSyncService:
         device = self._get_device(db, user_id, provider.lower())
         if not device:
             raise ValueError("Device is not linked.")
-
-        # Placeholder values until provider-specific API clients are wired in.
-        synced_data = {
-            "steps": 12000,
-            "heart_rate": 62,
-            "sleep_hours": 7.8,
-            "calories": 2300,
-            "distance_km": 8.4,
-            "synced_at": datetime.utcnow(),
-        }
-        device.last_sync = synced_data["synced_at"]
-        device.status = "synced"
-        db.commit()
-        return synced_data
+        raise NotImplementedError("Provider synchronization is unavailable until vendor OAuth/API clients are configured.")
 
     def get_last_sync(self, db: Session, user_id: int, provider: str):
         device = self._get_device(db, user_id, provider.lower())

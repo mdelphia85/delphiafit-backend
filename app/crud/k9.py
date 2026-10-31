@@ -9,8 +9,9 @@ class K9CRUD:
     # ---------------------------------------------------------
     # Create K9 Unit
     # ---------------------------------------------------------
-    def create_k9(self, db: Session, data: dict):
+    def create_k9(self, db: Session, data: dict, user_id: int):
         k9 = K9(
+            owner_user_id=user_id,
             name=data["name"],
             breed=data.get("breed"),
             age=data.get("age"),
@@ -28,16 +29,20 @@ class K9CRUD:
     # ---------------------------------------------------------
     # List K9 Units
     # ---------------------------------------------------------
-    def list_k9(self, db: Session):
-        return db.query(K9).filter(K9.is_active == True).all()
+    def list_k9(self, db: Session, user_id: int):
+        return db.query(K9).filter(K9.is_active == True, K9.owner_user_id == user_id).all()
 
     # ---------------------------------------------------------
     # Log Deployment
     # ---------------------------------------------------------
-    def log_deployment(self, db: Session, data: dict):
+    def log_deployment(self, db: Session, data: dict, user_id: int):
+        unit = db.query(K9).filter(K9.id == data["k9_id"], K9.owner_user_id == user_id).first()
+        if unit is None:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=404, detail="K9 unit not found.")
         deployment = K9Deployment(
             k9_id=data["k9_id"],
-            handler_id=data["handler_id"],
+            handler_id=user_id,
             mission_type=data["mission_type"],
             location=data.get("location"),
             notes=data.get("notes"),
@@ -53,7 +58,11 @@ class K9CRUD:
     # ---------------------------------------------------------
     # Get Deployment History
     # ---------------------------------------------------------
-    def get_history(self, db: Session, k9_id: int):
+    def get_history(self, db: Session, k9_id: int, user_id: int):
+        unit = db.query(K9).filter(K9.id == k9_id, K9.owner_user_id == user_id).first()
+        if unit is None:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=404, detail="K9 unit not found.")
         return db.query(K9Deployment).filter(
-            K9Deployment.k9_id == k9_id
+            K9Deployment.k9_id == k9_id, K9Deployment.handler_id == user_id
         ).order_by(K9Deployment.timestamp.desc()).all()

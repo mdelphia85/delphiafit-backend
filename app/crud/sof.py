@@ -13,6 +13,7 @@ class SOFCRUD:
         pipeline = SOFPipeline(
             name=data["name"],
             branch=data["branch"],
+            owner_user_id=data["owner_user_id"],
             description=data.get("description"),
             created_at=datetime.utcnow(),
             updated_at=datetime.utcnow()
@@ -22,8 +23,9 @@ class SOFCRUD:
         db.refresh(pipeline)
         return pipeline
 
-    def list_pipelines(self, db: Session):
-        return db.query(SOFPipeline).filter(SOFPipeline.active == True).all()
+    def list_pipelines(self, db: Session, user_id: int):
+        from sqlalchemy import or_
+        return db.query(SOFPipeline).filter(SOFPipeline.active == True, or_(SOFPipeline.owner_user_id.is_(None), SOFPipeline.owner_user_id == user_id)).all()
 
     # ---------------------------------------------------------
     # Events
@@ -60,9 +62,9 @@ class SOFCRUD:
         db.refresh(candidate)
         return candidate
 
-    def list_candidates(self, db: Session, pipeline_id: int):
+    def list_candidates(self, db: Session, pipeline_id: int, user_id: int):
         return db.query(SOFCandidate).filter(
-            SOFCandidate.pipeline_id == pipeline_id
+            SOFCandidate.pipeline_id == pipeline_id, SOFCandidate.user_id == user_id
         ).all()
 
     # ---------------------------------------------------------

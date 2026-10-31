@@ -12,6 +12,7 @@ class TacticalDrillBase(BaseModel):
     level: str | None = None
     duration: str | None = None
     notes: str | None = None
+    completed: bool = False
 
     # Shared generator fields
     intensity: str | None = None
@@ -64,6 +65,7 @@ class TacticalDrillUpdate(BaseModel):
     level: str | None = None
     duration: str | None = None
     notes: str | None = None
+    completed: bool | None = None
 
     intensity: str | None = None
     focus: str | None = None

@@ -1,6 +1,8 @@
 from datetime import datetime, timedelta
 import secrets
 
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
@@ -10,10 +12,10 @@ from app.auth.hashing import hash_password
 from app.database.connection import get_db
 from app.models.client import Client
 from app.models.coach import Coach
-from app.models.coach_team_membership import CoachTeamMembership
 from app.models.invite import Invite
-from app.models.team import Team
 from app.models.user import User
+from app.routers.coach_hub import router as coach_hub_router
+from app.services.coach_access import accessible_team_ids, get_accessible_team, get_managed_client
 from app.services.email_delivery import send_client_invitation
 
 router = APIRouter(prefix="/staff", tags=["Staff"])
@@ -21,12 +23,22 @@ router = APIRouter(prefix="/staff", tags=["Staff"])
 
 class ClientInviteRequest(BaseModel):
     email: EmailStr
+    team_id: Optional[int] = None
 
 
 class ClientInviteAcceptRequest(BaseModel):
     invitation_token: str
     name: str
     password: str
+
+
+@router.get("/invitations/lookup")
+def lookup_invitation(token: str, db: Session = Depends(get_db)):
+    """Public: lets the invite page know which form (coach or client) to show."""
+    invite = db.query(Invite).filter(Invite.token == token).first()
+    if not invite or invite.accepted or (invite.expires_at and invite.expires_at < datetime.utcnow()):
+        raise HTTPException(status_code=404, detail="Invalid, expired or already-used invitation")
+    return {"email": invite.email, "role": "client" if invite.role == "client" else "coach"}
 
 
 @router.post("/invitations/accept")
@@ -85,9 +97,7 @@ def accept_client_invitation(
 
 
 def _team_ids(db: Session, coach_id: int) -> list[int]:
-    owned = [row[0] for row in db.query(Team.id).filter(Team.coach_id == coach_id, Team.is_active.is_(True)).all()]
-    shared = [row[0] for row in db.query(CoachTeamMembership.team_id).filter(CoachTeamMembership.coach_id == coach_id).all()]
-    return list(dict.fromkeys(owned + shared))
+    return accessible_team_ids(db, coach_id)
 
 
 def _client_payload(client: Client) -> dict:
@@ -126,7 +136,10 @@ def invite_staff_client(
         raise HTTPException(status_code=400, detail="That client is already active")
 
     team_ids = _team_ids(db, coach.id)
-    team_id = team_ids[0] if team_ids else None
+    if data.team_id is not None:
+        team_id = get_accessible_team(db, coach, data.team_id).id
+    else:
+        team_id = team_ids[0] if team_ids else None
     token = secrets.token_urlsafe(32)
     invite = Invite(
         coach_id=coach.id,
@@ -146,7 +159,12 @@ def invite_staff_client(
         delivered = send_client_invitation(invite.email, invite.token)
     except Exception:
         delivered = False
-    return {"message": "Invitation created", "invite_id": invite.id, "delivery_configured": delivered}
+    return {
+        "message": "Invitation created",
+        "invite_id": invite.id,
+        "delivery_configured": delivered,
+        "invite_token": invite.token,
+    }
 
 
 @router.delete("/clients/{client_id}")
@@ -155,13 +173,11 @@ def remove_staff_client(
     coach: Coach = Depends(get_current_coach),
     db: Session = Depends(get_db),
 ):
-    client = db.query(Client).filter(Client.id == client_id).first()
-    if not client:
-        raise HTTPException(status_code=404, detail="Client not found")
-    accessible_team_ids = set(_team_ids(db, coach.id))
-    if client.coach_id != coach.id and client.team_id not in accessible_team_ids:
-        raise HTTPException(status_code=403, detail="You do not manage this client")
+    client = get_managed_client(db, coach, client_id, include_inactive=True)
     client.status = "inactive"
     client.updated_at = datetime.utcnow()
     db.commit()
     return {"status": "removed", "id": client.id}
+
+
+router.include_router(coach_hub_router)
