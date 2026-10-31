@@ -82,3 +82,12 @@ class SocialFollow(Base):
     followed_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     __table_args__ = (UniqueConstraint("follower_id", "followed_id", name="uq_social_follow"),)
+
+
+class TournamentRegistration(Base):
+    __tablename__ = "tournament_registrations"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    tournament_id = Column(Integer, ForeignKey("tournaments.id"), nullable=False, index=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    __table_args__ = (UniqueConstraint("user_id", "tournament_id", name="uq_tournament_registration_user"),)

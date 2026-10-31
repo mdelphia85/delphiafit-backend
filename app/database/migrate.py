@@ -180,11 +180,11 @@ def migrate_community_area() -> None:
     """Create new community persistence tables and add nullable competition ownership."""
     from app.models.community_area import (
         AcademyProgress, CompetitionRegistration, FederationMembership, RecruitingProfile,
-        ListingInterest, ChildProfile, ChildProgress, SocialFollow,
+        ListingInterest, ChildProfile, ChildProgress, SocialFollow, TournamentRegistration,
     )
 
     for model in (AcademyProgress, CompetitionRegistration, FederationMembership, RecruitingProfile,
-                  ListingInterest, ChildProfile, ChildProgress, SocialFollow):
+                  ListingInterest, ChildProfile, ChildProgress, SocialFollow, TournamentRegistration):
         model.__table__.create(bind=engine, checkfirst=True)
     with engine.begin() as conn:
         for table in ("competitions", "seasons"):
@@ -232,6 +232,19 @@ def migrate_prep_pipeline_owners() -> None:
                 conn.execute(text(f"ALTER TABLE {table} ADD COLUMN owner_user_id INTEGER"))
 
 
+def migrate_legacy_tactical_owners() -> None:
+    """Add owner columns without changing existing legacy tactical data."""
+    with engine.begin() as conn:
+        inspector = inspect(conn)
+        for table in ("scenarios", "units"):
+            if table not in inspector.get_table_names():
+                continue
+            columns = {column["name"] for column in inspector.get_columns(table)}
+            if "owner_user_id" not in columns:
+                conn.execute(text(f"ALTER TABLE {table} ADD COLUMN owner_user_id INTEGER"))
+            conn.execute(text(f"CREATE INDEX IF NOT EXISTS ix_{table}_owner_user_id ON {table} (owner_user_id)"))
+
+
 def run_migrations() -> None:
     migrate_workout_logs()
     migrate_users()
@@ -244,6 +257,7 @@ def run_migrations() -> None:
     migrate_coach_hub()
     migrate_tactical_owners()
     migrate_prep_pipeline_owners()
+    migrate_legacy_tactical_owners()
     migrate_community_area()
     # Creates all new V2 tables without dropping or replacing existing data.
     Base.metadata.create_all(bind=engine)

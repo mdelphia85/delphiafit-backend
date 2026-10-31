@@ -9,6 +9,7 @@ class Unit(Base):
     __tablename__ = "units"
 
     id = Column(Integer, primary_key=True, index=True)
+    owner_user_id = Column(Integer, nullable=True, index=True)
 
     name = Column(String, nullable=False)              # "Alpha Team", "Rescue 4", "Wildland Strike Team"
     unit_type = Column(String, nullable=False)         # swat, sof, fire, ems, sar, hazmat, wildland, maritime, aviation

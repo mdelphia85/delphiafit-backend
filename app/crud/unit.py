@@ -12,6 +12,7 @@ class UnitCRUD:
     def create_unit(self, db: Session, data: dict):
         unit = Unit(
             name=data["name"],
+            owner_user_id=data["owner_user_id"],
             unit_type=data["unit_type"],
             description=data.get("description"),
             readiness_score=0.0,
@@ -24,11 +25,20 @@ class UnitCRUD:
         db.refresh(unit)
         return unit
 
-    def list_units(self, db: Session):
-        return db.query(Unit).filter(Unit.active == True).all()
+    def list_units(self, db: Session, user_id: int):
+        from sqlalchemy import or_
+        return db.query(Unit).outerjoin(UnitMember, UnitMember.unit_id == Unit.id).filter(
+            Unit.active == True,
+            or_(Unit.owner_user_id == user_id, UnitMember.user_id == user_id),
+        ).distinct().all()
 
-    def get_unit(self, db: Session, unit_id: int):
-        return db.query(Unit).filter(Unit.id == unit_id).first()
+    def get_unit(self, db: Session, unit_id: int, user_id: int = None):
+        query = db.query(Unit).filter(Unit.id == unit_id)
+        if user_id is not None:
+            query = query.outerjoin(UnitMember, UnitMember.unit_id == Unit.id).filter(
+                (Unit.owner_user_id == user_id) | (UnitMember.user_id == user_id)
+            )
+        return query.first()
 
     # ---------------------------------------------------------
     # Members

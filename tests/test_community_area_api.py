@@ -90,7 +90,12 @@ def test_federation_membership_and_competition_registration_are_scoped():
     assert client.post("/tournament/create", headers=outsider, json={"competition_id": competition_id, "name": "Cup"}).status_code == 403
     tournament = client.post("/tournament/create", headers=owner, json={"competition_id": competition_id, "name": "Cup"})
     assert tournament.status_code == 200, tournament.text
-    assert client.get(f"/tournament/competition/{competition_id}", headers=participant).json()[0]["name"] == "Cup"
+    tournaments = client.get(f"/tournament/competition/{competition_id}", headers=participant)
+    assert tournaments.json()[0]["name"] == "Cup"
+    tournament_id = tournaments.json()[0]["id"]
+    assert client.post(f"/tournament/{tournament_id}/register", headers=participant).json()["registered"] is True
+    assert client.get(f"/tournament/competition/{competition_id}", headers=participant).json()[0]["registered_count"] == 1
+    assert client.delete(f"/tournament/{tournament_id}/register", headers=participant).json()["registered"] is False
     assert client.delete(f"/competition/{competition_id}/register", headers=participant).json()["registered"] is False
     assert client.get("/competition/list").status_code == 401
 
@@ -111,3 +116,27 @@ def test_marketplace_listing_interest_and_owner_only_edits():
 def test_community_area_migrations_are_idempotent():
     run_migrations()
     run_migrations()
+
+
+def test_creator_seasons_ladders_and_tournaments_are_owner_scoped():
+    owner, outsider = account("season-owner"), account("season-outsider")
+    creator(owner)
+    creator(outsider)
+    assert client.post("/season/create", headers=owner, json={"name": "2026 Track", "year": 2026, "sport": "track"}).status_code == 200
+    season = client.post("/season/create", headers=owner, json={"name": "Winter", "year": 2026})
+    assert season.status_code == 200, season.text
+    season_id = season.json()["id"]
+    assert client.put(f"/season/{season_id}/update", headers=outsider, json={"updates": {"name": "Stolen"}}).status_code == 403
+    competition = client.post("/competition/create", headers=owner, json={"name": "Seasoned Meet", "season_id": season_id})
+    assert competition.status_code == 200, competition.text
+    competition_id = competition.json()["id"]
+    assert client.post("/competition/create", headers=outsider, json={"name": "Wrong Season", "season_id": season_id}).status_code == 403
+    assert client.post("/ladder/create", headers=owner, json={"competition_id": competition_id, "name": "Open Ladder"}).status_code == 200
+    ladder = client.post("/ladder/create", headers=owner, json={"competition_id": competition_id, "name": "Season Ladder"})
+    assert ladder.status_code == 200, ladder.text
+    ladder_id = ladder.json()["id"]
+    assert client.put(f"/ladder/{ladder_id}/update", headers=outsider, json={"updates": {"name": "Hijacked"}}).status_code == 403
+    tournament = client.post("/tournament/create", headers=owner, json={"competition_id": competition_id, "name": "Date Test", "start_date": "2026-11-15T10:00:00"})
+    assert tournament.status_code == 200, tournament.text
+    tournament_id = tournament.json()["id"]
+    assert client.put(f"/tournament/{tournament_id}/update", headers=outsider, json={"updates": {"name": "Hijacked"}}).status_code == 403

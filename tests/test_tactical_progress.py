@@ -1,5 +1,6 @@
 import os
 import tempfile
+import uuid
 
 import pytest
 
@@ -17,6 +18,8 @@ client = TestClient(app)
 
 
 def register_and_login(email):
+    local, domain = email.split("@", 1)
+    email = f"{local}-{uuid.uuid4().hex}@{domain}"
     client.post("/auth/register", json={"name": email, "email": email, "password": "Passw0rd!x"})
     response = client.post("/auth/login", json={"email": email, "password": "Passw0rd!x"})
     assert response.status_code == 200, response.text

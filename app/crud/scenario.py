@@ -12,6 +12,7 @@ class ScenarioCRUD:
     def create_scenario(self, db: Session, data: dict):
         scenario = Scenario(
             name=data["name"],
+            owner_user_id=data.get("owner_user_id"),
             category=data["category"],
             difficulty=data.get("difficulty"),
             description=data.get("description"),
@@ -23,8 +24,9 @@ class ScenarioCRUD:
         db.refresh(scenario)
         return scenario
 
-    def list_scenarios(self, db: Session):
-        return db.query(Scenario).filter(Scenario.active == True).all()
+    def list_scenarios(self, db: Session, user_id: int):
+        from sqlalchemy import or_
+        return db.query(Scenario).filter(Scenario.active == True, or_(Scenario.owner_user_id.is_(None), Scenario.owner_user_id == user_id)).all()
 
     # ---------------------------------------------------------
     # Nodes

@@ -9,6 +9,8 @@ from app.database.connection import get_db
 from app.crud.tournament import TournamentCRUD
 from app.crud.competition import CompetitionCRUD
 from app.models.user import User
+from app.models.tournament import Tournament
+from app.models.community_area import TournamentRegistration
 from app.utils.security import get_current_user_id
 
 router = APIRouter(prefix="/tournament", tags=["Tournament"])
@@ -66,7 +68,11 @@ def get_tournament(tournament_id: int, db: Session = Depends(get_db), user_id: i
 # ---------------------------------------------------------
 @router.get("/competition/{competition_id}")
 def list_tournaments_for_competition(competition_id: int, db: Session = Depends(get_db), user_id: int = Depends(get_current_user_id)):
-    return crud.list_tournaments_for_competition(db, competition_id)
+    rows = crud.list_tournaments_for_competition(db, competition_id)
+    return [{**{column.name: getattr(row, column.name) for column in row.__table__.columns},
+             "registered_count": db.query(TournamentRegistration).filter_by(tournament_id=row.id).count(),
+             "registered": db.query(TournamentRegistration).filter_by(tournament_id=row.id, user_id=user_id).first() is not None}
+            for row in rows]
 
 
 # ---------------------------------------------------------
@@ -101,3 +107,24 @@ def _require_tournament_owner(db: Session, tournament_id: int, user_id: int):
     user = db.query(User).filter_by(id=user_id).first()
     if competition.owner_id != user_id and not (user and user.is_admin):
         raise HTTPException(status_code=403, detail="Not the tournament owner")
+
+
+@router.post("/{tournament_id}/register")
+def register_for_tournament(tournament_id: int, db: Session = Depends(get_db), user_id: int = Depends(get_current_user_id)):
+    tournament = db.query(Tournament).filter_by(id=tournament_id, is_active=True).first()
+    if not tournament:
+        raise HTTPException(status_code=404, detail="Tournament not found")
+    row = db.query(TournamentRegistration).filter_by(tournament_id=tournament_id, user_id=user_id).first()
+    if row is None:
+        db.add(TournamentRegistration(tournament_id=tournament_id, user_id=user_id))
+        db.commit()
+    return {"tournament_id": tournament_id, "registered": True}
+
+
+@router.delete("/{tournament_id}/register")
+def withdraw_from_tournament(tournament_id: int, db: Session = Depends(get_db), user_id: int = Depends(get_current_user_id)):
+    row = db.query(TournamentRegistration).filter_by(tournament_id=tournament_id, user_id=user_id).first()
+    if row:
+        db.delete(row)
+        db.commit()
+    return {"tournament_id": tournament_id, "registered": False}
