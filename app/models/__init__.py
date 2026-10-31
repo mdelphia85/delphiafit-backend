@@ -75,4 +75,5 @@ from . import wildland as _wildland
 from . import workout_log as _workout_log
 
 from . import user_profile as _user_profile
+from . import nutrition_settings as _nutrition_settings
 from . import coach_team_membership as _coach_team_membership

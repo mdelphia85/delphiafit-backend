@@ -112,6 +112,18 @@ def migrate_tactical_drills() -> None:
             conn.execute(text("ALTER TABLE tactical_drills ADD COLUMN user_id INTEGER"))
 
 
+def migrate_user_profiles() -> None:
+    """Add nullable nutrition inputs to user_profiles without touching existing data."""
+    with engine.begin() as conn:
+        inspector = inspect(conn)
+        if "user_profiles" not in inspector.get_table_names():
+            return
+        columns = {column["name"] for column in inspector.get_columns("user_profiles")}
+        for name in ("sex", "activity_level"):
+            if name not in columns:
+                conn.execute(text(f"ALTER TABLE user_profiles ADD COLUMN {name} VARCHAR"))
+
+
 def run_migrations() -> None:
     migrate_workout_logs()
     migrate_users()
@@ -119,6 +131,7 @@ def run_migrations() -> None:
     migrate_daily_logs()
     migrate_personal_records()
     migrate_tactical_drills()
+    migrate_user_profiles()
     # Creates all new V2 tables without dropping or replacing existing data.
     Base.metadata.create_all(bind=engine)
 

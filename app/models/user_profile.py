@@ -16,5 +16,8 @@ class UserProfile(Base):
     current_weight = Column(String, nullable=True)
     goal_weight = Column(String, nullable=True)
     height = Column(String, nullable=True)
+    # Added for nutrition calculations; nullable so existing rows are unaffected.
+    sex = Column(String, nullable=True)
+    activity_level = Column(String, nullable=True)
 
     user = relationship("User", back_populates="profile")

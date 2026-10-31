@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -26,6 +26,8 @@ class ProfileUpdate(BaseModel):
     current_weight: Optional[str] = None
     goal_weight: Optional[str] = None
     height: Optional[str] = None
+    sex: Optional[Literal["male", "female"]] = None
+    activity_level: Optional[Literal["sedentary", "light", "moderate", "very_active", "extra_active"]] = None
 
 
 class ProgressDailyInput(BaseModel):
@@ -69,6 +71,8 @@ def _profile_payload(user: User, profile: Optional[UserProfile]) -> dict:
         "current_weight": profile.current_weight if profile else None,
         "goal_weight": profile.goal_weight if profile else None,
         "height": profile.height if profile else None,
+        "sex": profile.sex if profile else None,
+        "activity_level": profile.activity_level if profile else None,
     }
 
 
@@ -116,6 +120,10 @@ def update_profile(
 
     for field in ("dob", "weight_unit", "height_unit", "starting_weight", "current_weight", "goal_weight", "height"):
         setattr(profile, field, getattr(data, field))
+    # Older clients do not send these; only change them when explicitly provided.
+    for field in ("sex", "activity_level"):
+        if field in data.model_fields_set:
+            setattr(profile, field, getattr(data, field))
     db.commit()
     db.refresh(profile)
     return {"success": True, **_profile_payload(user, profile)}
