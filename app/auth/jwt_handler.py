@@ -11,7 +11,7 @@ if not SECRET_KEY:
     raise RuntimeError("JWT_SECRET environment variable is required")
 
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7
 
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
