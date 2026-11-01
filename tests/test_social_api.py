@@ -75,6 +75,24 @@ def test_groups_are_user_scoped_and_join_operations_are_idempotent():
     assert client.get(f"/social/posts/group/{group_id}", headers=bob).status_code == 404
 
 
+def test_group_roster_shows_member_activity_and_requires_membership():
+    alice, bob, cara = (make_user(f"roster-{name}@example.com") for name in ("alice", "bob", "cara"))
+    group_id = client.post("/social/groups", headers=alice, params={"name": "Roster Crew"}).json()["id"]
+    assert client.post(f"/social/groups/{group_id}/join", headers=bob).status_code == 200
+    saved = client.post("/workouts/save", headers=alice, json={"mode": "manual", "duration_minutes": 30, "manual_name": "Run"})
+    assert saved.status_code == 200, saved.text
+
+    assert client.get(f"/social/groups/{group_id}/roster", headers=cara).status_code == 404
+    roster = client.get(f"/social/groups/{group_id}/roster", headers=bob)
+    assert roster.status_code == 200, roster.text
+    body = roster.json()
+    assert body["group"]["name"] == "Roster Crew"
+    by_name = {m["name"]: m for m in body["members"]}
+    assert by_name["roster-alice@example.com"]["workouts_7d"] == 1
+    assert by_name["roster-bob@example.com"]["workouts_7d"] == 0
+    assert by_name["roster-bob@example.com"]["is_you"] is True
+
+
 def test_leaderboard_uses_persisted_sports_logs_and_requires_authentication():
     alice, bob = make_user("ranking-alice@example.com"), make_user("ranking-bob@example.com")
     assert client.get("/sports/logs/leaderboard").status_code == 401

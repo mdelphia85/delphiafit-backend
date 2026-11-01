@@ -1,10 +1,16 @@
+from datetime import datetime, timedelta
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.database.connection import get_db
+from app.models.groups import Group, GroupMember
+from app.models.user import User
+from app.models.workout_log import WorkoutLog
 from app.utils.security import get_current_user_id
 
 from app.crud.social import (
+    require_group_member,
     create_achievement,
     get_user_achievements,
     create_challenge,
@@ -122,6 +128,40 @@ def list_group_members(
     user_id: int = Depends(get_current_user_id)
 ):
     return get_group_members(db, user_id, group_id)
+
+
+@router.get("/groups/{group_id}/roster")
+def group_roster(
+    group_id: int,
+    db: Session = Depends(get_db),
+    user_id: int = Depends(get_current_user_id)
+):
+    """Members of a group the caller belongs to, with their last-7-days workout activity."""
+    require_group_member(db, user_id, group_id)
+    group = db.query(Group).filter(Group.id == group_id).first()
+    member_ids = [row.user_id for row in db.query(GroupMember).filter(GroupMember.group_id == group_id).all()]
+    names = {u.id: u.name or u.email for u in db.query(User).filter(User.id.in_(member_ids)).all()}
+    week_ago = datetime.utcnow() - timedelta(days=7)
+    logs = db.query(WorkoutLog.user_id, WorkoutLog.date).filter(
+        WorkoutLog.user_id.in_(member_ids), WorkoutLog.date >= week_ago
+    ).all()
+    workouts: dict[int, int] = {}
+    days: dict[int, set] = {}
+    for member_id, when in logs:
+        workouts[member_id] = workouts.get(member_id, 0) + 1
+        days.setdefault(member_id, set()).add(when.date() if when else None)
+    members = [
+        {
+            "id": member_id,
+            "name": names.get(member_id, "Member"),
+            "is_you": member_id == user_id,
+            "workouts_7d": workouts.get(member_id, 0),
+            "active_days_7d": len(days.get(member_id, set())),
+        }
+        for member_id in member_ids
+    ]
+    members.sort(key=lambda m: (-m["workouts_7d"], m["name"].lower()))
+    return {"group": {"id": group.id, "name": group.name, "category": group.category}, "members": members}
 
 
 @router.get("/groups")
