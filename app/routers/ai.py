@@ -100,7 +100,11 @@ def _adapt(db: Session, user_id: int, data: dict) -> tuple[dict, dict]:
             used["difficulty"] = profile["difficulty"]
         elif logs:
             adapted["experience"] = "beginner" if len(logs) < 10 else "intermediate" if len(logs) < 50 else "advanced"
-    categories = profile.get("preferredCategories") or {}
+    categories = {
+        key: value for key, value in (profile.get("preferredCategories") or {}).items()
+        if isinstance(key, str) and key.strip() and key.strip().lower() not in {"undefined", "null"}
+        and isinstance(value, (int, float)) and not isinstance(value, bool) and value > 0
+    }
     if categories:
         top = max(categories, key=categories.get)
         used["preferred_category"] = top

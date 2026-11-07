@@ -48,4 +48,30 @@ def test_ai_uses_saved_profile_and_real_workout_history():
     override = client.post("/ai/personalize", headers=user, json={"experience": "beginner", "fatigue": 0}).json()["result"]
     assert override["difficulty"] == "easy"
     coach = client.post("/ai/coach", headers=user, json={"user_data": {}, "message": "Plan?"}).json()
-    assert "Difficulty level" in coach["coach_response"] and coach["adaptive_inputs"]["difficulty"] == "hard"
+    assert "Estimated training difficulty: hard" in coach["coach_response"] and coach["adaptive_inputs"]["difficulty"] == "hard"
+
+
+def test_invalid_stored_categories_are_not_adapted():
+    user = make_user("adapt-invalid@example.com")
+    client.put("/ai/profile", headers=user, json={"preferredCategories": {"undefined": 10, "null": 5, "Strength": 2}})
+    coach = client.post("/ai/coach", headers=user, json={"user_data": {}, "message": "Plan?"}).json()
+    assert coach["adaptive_inputs"]["preferred_category"] == "Strength"
+    client.put("/ai/profile", headers=user, json={"preferredCategories": {"undefined": 10}})
+    coach = client.post("/ai/coach", headers=user, json={"user_data": {}, "message": "Plan?"}).json()
+    assert "preferred_category" not in coach["adaptive_inputs"]
+
+
+def test_knee_pain_coaching_is_saved_and_returned():
+    user = make_user("adapt-knee@example.com")
+    response = client.post("/ai/coach", headers=user, json={
+        "user_data": {"fatigue": 3, "sleep_hours": 7},
+        "message": "right knee pain, give me a work out to work around this",
+    })
+    assert response.status_code == 200
+    body = response.json()
+    assert "knee pain" in body["coach_response"]
+    assert "not clearance" in body["coach_response"]
+    assert "recovered" not in body["coach_response"]
+    records = client.get("/ai/records", headers=user).json()
+    assert records[0]["id"] == body["record_id"]
+    assert records[0]["result"]["coach_response"] == body["coach_response"]
