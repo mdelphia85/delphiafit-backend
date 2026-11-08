@@ -1,7 +1,5 @@
 from sqlalchemy import Column, Integer, DateTime, String
-from sqlalchemy.orm import declarative_base
-
-Base = declarative_base()
+from app.database.connection import Base
 
 class HydrationLog(Base):
     __tablename__ = "hydration_logs"

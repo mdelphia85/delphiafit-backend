@@ -1,10 +1,11 @@
-from sqlalchemy import Column, Integer, String, Text
+from sqlalchemy import Boolean, Column, Integer, String, Text, ForeignKey
 from app.database.connection import Base
 
 class TacticalDrill(Base):
     __tablename__ = "tactical_drills"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
 
     # Core fields (manual + generator)
     division = Column(String, index=True)
@@ -13,6 +14,7 @@ class TacticalDrill(Base):
     level = Column(String, nullable=True)
     duration = Column(String, nullable=True)
     notes = Column(Text, nullable=True)
+    completed = Column(Boolean, nullable=False, default=False)
 
     # Shared generator metadata
     intensity = Column(String, nullable=True)

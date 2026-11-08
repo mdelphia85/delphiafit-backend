@@ -1,7 +1,5 @@
 from sqlalchemy import Column, Integer, Float, DateTime
-from sqlalchemy.orm import declarative_base
-
-Base = declarative_base()
+from app.database.connection import Base
 
 class BodyMetrics(Base):
     __tablename__ = "body_metrics"

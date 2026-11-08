@@ -39,7 +39,7 @@ def update_goal(db: Session, goal_id: int, data: GoalUpdate) -> Optional[Goal]:
     if not goal:
         return None
 
-    for field, value in data.dict(exclude_unset=True).items():
+    for field, value in data.model_dump(exclude_unset=True).items():
         setattr(goal, field, value)
 
     db.commit()

@@ -1,27 +1,38 @@
-from pydantic import BaseModel
 from datetime import datetime
+from pydantic import BaseModel, ConfigDict
 
-class DailyLogBase(BaseModel):
-    date: datetime
+class DailyLogCreate(BaseModel):
+    protein: float | None = None
+    water: float | None = None
+    calories: float | None = None
+    meals: float | None = None
+    workouts: float | None = None
+    supplements: float | None = None
     mood: str | None = None
-    energy_level: int | None = None
-    notes: str | None = None
-
-
-class DailyLogCreate(DailyLogBase):
-    user_id: int
-
+    energy: str | None = None
+    date: datetime | None = None
 
 class DailyLogUpdate(BaseModel):
-    date: datetime | None = None
+    protein: float | None = None
+    water: float | None = None
+    calories: float | None = None
+    meals: float | None = None
+    workouts: float | None = None
+    supplements: float | None = None
     mood: str | None = None
-    energy_level: int | None = None
-    notes: str | None = None
+    energy: str | None = None
+    date: datetime | None = None
 
-
-class DailyLogRead(DailyLogBase):
+class DailyLogRead(BaseModel):
+    protein: float | None = None
+    water: float | None = None
+    calories: float | None = None
+    meals: float | None = None
+    workouts: float | None = None
+    supplements: float | None = None
     id: int
     user_id: int
-
-    class Config:
-        from_attributes = True
+    mood: str | None = None
+    energy: str | None = None
+    date: datetime
+    model_config = ConfigDict(from_attributes=True)

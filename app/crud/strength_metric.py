@@ -11,7 +11,6 @@ def create_strength_metric(db: Session, user_id: int, data: StrengthMetricCreate
         user_id=user_id,
         metric_name=data.metric_name,
         value=data.value,
-        created_at=data.created_at or datetime.utcnow(),
     )
     db.add(metric)
     db.commit()
@@ -37,7 +36,7 @@ def update_strength_metric(db: Session, metric_id: int, data: StrengthMetricUpda
     if not metric:
         return None
 
-    for field, value in data.dict(exclude_unset=True).items():
+    for field, value in data.model_dump(exclude_unset=True).items():
         setattr(metric, field, value)
 
     db.commit()

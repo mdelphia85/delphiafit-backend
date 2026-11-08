@@ -18,6 +18,8 @@ class Group(Base):
     # Members relationship
     members = relationship("GroupMember", back_populates="group")
 
+    posts = relationship("Post", back_populates="group")
+
 
 class GroupMember(Base):
     __tablename__ = "group_members"

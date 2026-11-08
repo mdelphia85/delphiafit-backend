@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from datetime import datetime
 
 
@@ -9,7 +9,7 @@ class HydrationLogBase(BaseModel):
 
 
 class HydrationLogCreate(HydrationLogBase):
-    user_id: int
+    pass
 
 
 class HydrationLogUpdate(BaseModel):
@@ -22,5 +22,4 @@ class HydrationLogRead(HydrationLogBase):
     id: int
     user_id: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

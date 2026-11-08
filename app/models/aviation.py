@@ -2,13 +2,14 @@ from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, Foreign
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
-from app.database import Base
+from app.database.connection import Base
 
 
 class AviationOperation(Base):
     __tablename__ = "aviation_operations"
 
     id = Column(Integer, primary_key=True, index=True)
+    owner_user_id = Column(Integer, nullable=True, index=True)
 
     name = Column(String, nullable=False)
     operation_type = Column(String, nullable=False)  # medevac, SAR, patrol, insertion, extraction

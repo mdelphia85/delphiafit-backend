@@ -7,7 +7,7 @@ from app.utils.security import get_current_user_id
 
 # Schemas
 from app.schemas.strength_metric import StrengthMetricCreate, StrengthMetricRead
-from app.schemas.pr_records import PersonalRecordCreate, PersonalRecordRead
+from app.schemas.pr_records import PRRecordCreate, PRRecordRead
 from app.schemas.progress_snapshot import ProgressSnapshotCreate, ProgressSnapshotRead
 from app.schemas.recovery import RecoveryCreate, RecoveryRead
 from app.schemas.periodization import PeriodizationBlockCreate, PeriodizationBlockRead
@@ -45,15 +45,15 @@ def list_strength_metrics(
 # Personal Records (PRs)
 # ---------------------------
 
-@router.post("/prs", response_model=PersonalRecordRead)
+@router.post("/prs", response_model=PRRecordRead)
 def add_pr(
-    payload: PersonalRecordCreate,
+    payload: PRRecordCreate,
     db: Session = Depends(get_db),
     user_id: int = Depends(get_current_user_id)
 ):
     return create_pr(db, user_id, payload)
 
-@router.get("/prs", response_model=List[PersonalRecordRead])
+@router.get("/prs", response_model=List[PRRecordRead])
 def list_prs(
     db: Session = Depends(get_db),
     user_id: int = Depends(get_current_user_id)

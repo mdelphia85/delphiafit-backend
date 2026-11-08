@@ -1,26 +1,15 @@
-from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
-from typing import List
+from sqlalchemy import Column, Integer, Float, String, DateTime, ForeignKey, Boolean
+from datetime import datetime
+from app.database.connection import Base
 
-from app.database.connection import get_db
-from app.utils.security import get_current_user_id
+class PersonalRecord(Base):
+    __tablename__ = "personal_records"
 
-from app.schemas.pr_records import PRRecordCreate, PRRecordRead
-from app.crud.pr_records import create_pr, get_prs
-
-router = APIRouter(prefix="/pr", tags=["pr"])
-
-@router.post("/", response_model=PRRecordRead)
-def add_pr(
-    payload: PRRecordCreate,
-    db: Session = Depends(get_db),
-    user_id: int = Depends(get_current_user_id)
-):
-    return create_pr(db, user_id, payload)
-
-@router.get("/", response_model=List[PRRecordRead])
-def list_prs(
-    db: Session = Depends(get_db),
-    user_id: int = Depends(get_current_user_id)
-):
-    return get_prs(db, user_id)
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    exercise_name = Column(String, nullable=False)
+    pr_type = Column(String, nullable=False)  # "1RM", "max_reps", "max_weight"
+    value = Column(Float, nullable=False)
+    notes = Column(String, nullable=True)
+    is_current = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)

@@ -2,13 +2,14 @@ from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, Float, 
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
-from app.database import Base
+from app.database.connection import Base
 
 
 class Scenario(Base):
     __tablename__ = "scenarios"
 
     id = Column(Integer, primary_key=True, index=True)
+    owner_user_id = Column(Integer, nullable=True, index=True)
 
     name = Column(String, nullable=False)
     category = Column(String, nullable=False)      # cqb, disaster, sar, maritime, aviation, hazmat, wildland

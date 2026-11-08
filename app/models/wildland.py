@@ -2,13 +2,14 @@ from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, Float, 
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
-from app.database import Base
+from app.database.connection import Base
 
 
 class WildlandOperation(Base):
     __tablename__ = "wildland_operations"
 
     id = Column(Integer, primary_key=True, index=True)
+    owner_user_id = Column(Integer, nullable=True, index=True)
 
     name = Column(String, nullable=False)
     fire_type = Column(String, nullable=False)  # brush, forest, grass, interface

@@ -2,7 +2,7 @@ from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
-from app.database import Base
+from app.database.connection import Base
 
 
 class RecoveryProtocol(Base):
@@ -18,3 +18,5 @@ class RecoveryProtocol(Base):
     updated_at = Column(DateTime, default=datetime.utcnow)
 
     stages = relationship("RecoveryStage", back_populates="protocol")
+
+    injury = relationship("Injury", back_populates="recovery_protocols")

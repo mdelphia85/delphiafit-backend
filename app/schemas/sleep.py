@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from datetime import datetime
 
 
@@ -10,7 +10,7 @@ class SleepLogBase(BaseModel):
 
 
 class SleepLogCreate(SleepLogBase):
-    user_id: int
+    pass
 
 
 class SleepLogUpdate(BaseModel):
@@ -24,5 +24,4 @@ class SleepLogRead(SleepLogBase):
     id: int
     user_id: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

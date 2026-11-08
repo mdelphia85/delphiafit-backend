@@ -1,9 +1,7 @@
 import random
-from fastapi import APIRouter, Depends, HTTPException
-from fastapi.security import OAuth2PasswordBearer
+from fastapi import APIRouter, HTTPException
 
 router = APIRouter(tags=["Sports"])
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
 # ---------------------------------------------------------
 # ⭐ PASTE YOUR FULL PYTHON SPORTS GENERATOR HERE
@@ -3051,12 +3049,12 @@ def generate_drill(sport: str, category: str, level: str):
 
 @router.get("")
 @router.get("/")
-def get_sports(token: str = Depends(oauth2_scheme)):
+def get_sports():
     return {"sports": get_sport_list()}
 
 
 @router.get("/{sport}/skills")
-def get_skills(sport: str, token: str = Depends(oauth2_scheme)):
+def get_skills(sport: str):
     sports_dict = _get_sports_dict()
     if sport not in sports_dict:
         raise HTTPException(status_code=404, detail="Sport not found")
@@ -3064,7 +3062,7 @@ def get_skills(sport: str, token: str = Depends(oauth2_scheme)):
 
 
 @router.get("/{sport}/{category}/levels")
-def get_levels(sport: str, category: str, token: str = Depends(oauth2_scheme)):
+def get_levels(sport: str, category: str):
     sports_dict = _get_sports_dict()
     if sport not in sports_dict:
         raise HTTPException(status_code=404, detail="Sport not found")
@@ -3074,7 +3072,7 @@ def get_levels(sport: str, category: str, token: str = Depends(oauth2_scheme)):
 
 
 @router.get("/{sport}/{category}/{level}/drills")
-def get_drill(sport: str, category: str, level: str, token: str = Depends(oauth2_scheme)):
+def get_drill(sport: str, category: str, level: str):
     sports_dict = _get_sports_dict()
     if sport not in sports_dict:
         raise HTTPException(status_code=404, detail="Sport not found")

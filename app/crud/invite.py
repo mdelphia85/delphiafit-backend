@@ -16,8 +16,12 @@ def get_invite(db: Session, invite_id: int) -> Optional[Invite]:
     return db.query(Invite).filter(Invite.id == invite_id).first()
 
 
-def get_invites_for_user(db: Session, user_id: int) -> List[Invite]:
-    return db.query(Invite).filter(Invite.user_id == user_id).all()
+def get_invites_for_coach(db: Session, coach_id: int) -> List[Invite]:
+    return db.query(Invite).filter(Invite.coach_id == coach_id).all()
+
+
+def get_invites_for_team(db: Session, team_id: int) -> List[Invite]:
+    return db.query(Invite).filter(Invite.team_id == team_id).all()
 
 
 def update_invite(db: Session, invite_id: int, data: dict) -> Optional[Invite]:
