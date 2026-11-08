@@ -58,6 +58,8 @@ def migrate_users() -> None:
             conn.execute(text("ALTER TABLE users ADD COLUMN password_reset_token_hash VARCHAR"))
         if "password_reset_expires_at" not in columns:
             conn.execute(text("ALTER TABLE users ADD COLUMN password_reset_expires_at TIMESTAMP"))
+        if "token_version" not in columns:
+            conn.execute(text("ALTER TABLE users ADD COLUMN token_version INTEGER NOT NULL DEFAULT 0"))
         if engine.dialect.name == "postgresql":
             conn.execute(text("ALTER TABLE users ALTER COLUMN streak SET DEFAULT 0"))
             conn.execute(text("ALTER TABLE users ALTER COLUMN streak SET NOT NULL"))
@@ -71,6 +73,7 @@ def migrate_coaches() -> None:
         columns = {column["name"] for column in inspector.get_columns("coaches")}
         additions = {
             "hashed_password": "VARCHAR",
+            "token_version": "INTEGER NOT NULL DEFAULT 0",
             "password_reset_token_hash": "VARCHAR",
             "password_reset_expires_at": "TIMESTAMP",
         }
@@ -175,6 +178,48 @@ def migrate_ai_records() -> None:
     AIRecord.__table__.create(bind=engine, checkfirst=True)
 
 
+def migrate_ai_idempotency() -> None:
+    """Add an optional per-user idempotency key and unique index to existing AI records."""
+    from app.models.ai_record import AIRecord
+
+    with engine.begin() as conn:
+        inspector = inspect(conn)
+        if "ai_records" not in inspector.get_table_names():
+            return
+        columns = {column["name"] for column in inspector.get_columns("ai_records")}
+        if "idempotency_key" not in columns:
+            conn.execute(text("ALTER TABLE ai_records ADD COLUMN idempotency_key VARCHAR(128)"))
+        next(index for index in AIRecord.__table__.indexes if index.name == "uq_ai_records_user_id_idempotency_key").create(
+            bind=conn,
+            checkfirst=True,
+        )
+
+
+def migrate_instructor_owners() -> None:
+    """Add explicit coach ownership without inferring identity from overlapping IDs."""
+    with engine.begin() as conn:
+        inspector = inspect(conn)
+        tables = set(inspector.get_table_names())
+        if "instructors" not in tables or "coaches" not in tables or "users" not in tables:
+            return
+        columns = {column["name"] for column in inspector.get_columns("instructors")}
+        if "owner_coach_id" not in columns:
+            conn.execute(text("ALTER TABLE instructors ADD COLUMN owner_coach_id INTEGER REFERENCES coaches(id)"))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_instructors_owner_coach_id "
+            "ON instructors (owner_coach_id)"
+        ))
+        conn.execute(text(
+            "UPDATE instructors SET owner_coach_id = ("
+            "SELECT coaches.id FROM coaches "
+            "JOIN users ON users.email = coaches.email "
+            "WHERE users.id = instructors.user_id"
+            ") WHERE owner_coach_id IS NULL AND EXISTS ("
+            "SELECT 1 FROM coaches JOIN users ON users.email = coaches.email "
+            "WHERE users.id = instructors.user_id"
+            ")"
+        ))
+
 
 def migrate_community_area() -> None:
     """Create new community persistence tables and add nullable competition ownership."""
@@ -254,15 +299,18 @@ def run_migrations() -> None:
     migrate_tactical_drills()
     migrate_user_profiles()
     migrate_admin_system()
-    migrate_coach_hub()
     migrate_tactical_owners()
     migrate_prep_pipeline_owners()
     migrate_legacy_tactical_owners()
-    migrate_community_area()
     # Creates all new V2 tables without dropping or replacing existing data.
     Base.metadata.create_all(bind=engine)
+    migrate_community_area()
+    migrate_instructor_owners()
+    # Coach Hub foreign keys reference clients, plans, and coaches, which must exist first.
+    migrate_coach_hub()
     migrate_org_memberships()
     migrate_ai_records()
+    migrate_ai_idempotency()
 
 
 if __name__ == "__main__":

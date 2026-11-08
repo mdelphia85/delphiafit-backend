@@ -1,11 +1,13 @@
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.auth.hashing import verify_password
-from app.auth.jwt_handler import create_access_token, decode_access_token
+from app.auth.errors import authentication_database_error
+from app.auth.jwt_handler import create_access_token, get_active_access_token
 from app.database.connection import get_db
 from app.models.login_log import LoginLog
 from app.models.logs import AdminAuditLog
@@ -48,6 +50,8 @@ def record_audit(
 def admin_login(data: AdminLogin, db: Session = Depends(get_db)):
     email = data.email.strip()
     user = db.query(User).filter(User.email == email).first()
+    if user is None:
+        user = db.query(User).filter(func.lower(User.email) == email.lower()).first()
 
     if not user or not verify_password(data.password, user.hashed_password):
         record_audit(
@@ -64,7 +68,12 @@ def admin_login(data: AdminLogin, db: Session = Depends(get_db)):
         record_audit(db, admin_ctx, "admin.login_denied", detail="Account suspended", success=False)
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account suspended")
 
-    token = create_access_token({"sub": str(user.id), "email": user.email, "is_admin": True})
+    token = create_access_token({
+        "sub": str(user.id),
+        "email": user.email,
+        "is_admin": True,
+        "token_version": user.token_version,
+    })
     db.add(LoginLog(user_id=user.id, timestamp=datetime.utcnow()))
     db.commit()
     record_audit(db, admin_ctx, "admin.login")
@@ -73,19 +82,25 @@ def admin_login(data: AdminLogin, db: Session = Depends(get_db)):
 
 
 def verify_admin(
-    token_data: dict = Depends(decode_access_token),
+    request: Request,
+    token_data: dict = Depends(get_active_access_token),
     db: Session = Depends(get_db),
 ) -> dict:
     """Require a valid token whose user currently has is_admin set in the database.
 
     Returns the token claims plus `admin_id` / `admin_email` for audit logging.
     """
+    if token_data.get("actor_type") not in (None, "user"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
     try:
         user_id = int(token_data.get("sub"))
     except (TypeError, ValueError):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid admin token")
 
-    user = db.query(User).filter(User.id == user_id).first()
+    try:
+        user = db.query(User).filter(User.id == user_id).first()
+    except Exception as exc:
+        raise authentication_database_error(db, request, "administrator token validation", exc) from None
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid admin token")
     if not token_data.get("is_admin") or not user.is_admin or user.is_suspended:

@@ -28,17 +28,40 @@ def get_users(db: Session) -> List[User]:
     return db.query(User).all()
 
 
-def update_user(db: Session, user_id: int, data: UserUpdate) -> Optional[User]:
-    user = get_user(db, user_id)
+class StaleUserCredentials(Exception):
+    pass
+
+
+def update_user(
+    db: Session,
+    user_id: int,
+    data: UserUpdate,
+    expected_token_version: int | None = None,
+) -> Optional[User]:
+    user = (
+        db.query(User)
+        .filter(User.id == user_id)
+        .with_for_update()
+        .populate_existing()
+        .first()
+    )
     if not user:
         return None
     changes = data.model_dump(exclude_unset=True)
     password = changes.pop("password", None)
-    if password:
-        user.hashed_password = hash_password(password)
-    for field, value in changes.items():
-        setattr(user, field, value)
-    db.commit()
+    hashed_password = hash_password(password) if password is not None else None
+    try:
+        if hashed_password is not None:
+            if expected_token_version is not None and user.token_version != expected_token_version:
+                raise StaleUserCredentials
+            user.hashed_password = hashed_password
+            user.token_version = User.token_version + 1
+        for field, value in changes.items():
+            setattr(user, field, value)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
     db.refresh(user)
     return user
 

@@ -9,10 +9,13 @@ os.environ["JWT_SECRET"] = "unit-test-secret-not-for-production"
 from fastapi.testclient import TestClient  # noqa: E402
 
 from app.auth.jwt_handler import create_access_token, decode_access_token  # noqa: E402
+from app.auth.hashing import hash_password  # noqa: E402
 from app.database.connection import SessionLocal  # noqa: E402
 from app.database.migrate import run_migrations  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models.coach import Coach  # noqa: E402
+from app.models.instructor import Instructor  # noqa: E402
+from app.models.user import User  # noqa: E402
 
 run_migrations()
 client = TestClient(app)
@@ -36,7 +39,13 @@ def create_coach(label):
         db.add(coach)
         db.commit()
         db.refresh(coach)
-        token = create_access_token({"sub": str(coach.id), "email": email, "actor_type": "coach", "role": coach.role})
+        token = create_access_token({
+            "sub": str(coach.id),
+            "email": email,
+            "actor_type": "coach",
+            "role": coach.role,
+            "token_version": coach.token_version,
+        })
         return coach.id, {"Authorization": "Bearer " + token}
     finally:
         db.close()
@@ -108,6 +117,70 @@ def test_instructor_routes_require_coach_role_and_scope_instructor_records():
     assert feedback.status_code == 200, feedback.text
     assert len(client.get(f"/instructor/feedback/{user_id}", headers=coach).json()) == 1
     assert client.get(f"/instructor/feedback/{user_id}", headers=other_coach).json() == []
+
+
+def test_legacy_coach_token_without_version_is_rejected():
+    coach_id, _ = create_coach("legacy-token-coach")
+    with SessionLocal() as db:
+        coach = db.query(Coach).filter(Coach.id == coach_id).one()
+        token = create_access_token({
+            "sub": str(coach.id),
+            "email": coach.email,
+            "actor_type": "coach",
+            "role": coach.role,
+        })
+    assert client.get("/staff/clients", headers={"Authorization": "Bearer " + token}).status_code == 401
+
+
+def test_coach_user_id_collision_cannot_access_user_routes():
+    collision_id = 100000 + uuid.uuid4().int % 1000000
+    email = f"collision-{uuid.uuid4().hex}@example.com"
+    password = "Passw0rd!x"
+    db = SessionLocal()
+    try:
+        db.add(User(id=collision_id, name="Protected User", email=email, hashed_password=hash_password(password)))
+        db.add(Coach(id=collision_id, email=f"coach-{email}", name="Separate Coach", role="coach", is_active=True, hashed_password=hash_password(password)))
+        db.commit()
+    finally:
+        db.close()
+    user_login = client.post("/auth/login", json={"email": email, "password": password})
+    coach_login = client.post("/coach/login", json={"email": f"coach-{email}", "password": password})
+    user_headers = {"Authorization": "Bearer " + user_login.json()["access_token"]}
+    coach_headers = {"Authorization": "Bearer " + coach_login.json()["access_token"]}
+
+    assert client.get(f"/users/{collision_id}", headers=user_headers).status_code == 200
+    assert client.put(f"/users/{collision_id}", headers=user_headers, json={"name": "Updated by owner"}).status_code == 200
+    assert client.get("/users/", headers=coach_headers).status_code == 403
+    assert client.get(f"/users/{collision_id}", headers=coach_headers).status_code == 403
+    assert client.put(f"/users/{collision_id}", headers=coach_headers, json={"name": "Stolen"}).status_code == 403
+    assert client.delete(f"/users/{collision_id}", headers=coach_headers).status_code == 403
+    assert client.get("/auth/me", headers=coach_headers).status_code == 403
+    assert client.post("/messages", headers=coach_headers, json={"message": "spoof"}).status_code == 403
+
+
+def test_legacy_instructor_rows_are_not_owned_by_a_colliding_coach_id():
+    collision_id = 200000 + uuid.uuid4().int % 1000000
+    email = f"legacy-collision-{uuid.uuid4().hex}@example.com"
+    db = SessionLocal()
+    try:
+        coach = Coach(id=collision_id, email=email, name="Legacy Coach", role="coach", is_active=True, hashed_password=hash_password("Passw0rd!x"))
+        row = Instructor(user_id=collision_id, agency="fire", role="legacy", active=True)
+        db.add_all([coach, row])
+        db.commit()
+        instructor_id = row.id
+        token = create_access_token({
+            "sub": str(coach.id),
+            "email": coach.email,
+            "actor_type": "coach",
+            "role": coach.role,
+            "token_version": coach.token_version,
+        })
+    finally:
+        db.close()
+
+    headers = {"Authorization": "Bearer " + token}
+    assert client.get(f"/instructor/assign/{instructor_id}", headers=headers).status_code == 404
+    assert client.get(f"/instructor/feedback/{collision_id}", headers=headers).json() == []
 
 
 def test_certification_catalog_and_user_records_are_scoped():

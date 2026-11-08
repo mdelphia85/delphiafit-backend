@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, text
 from sqlalchemy.sql import false, func
 from sqlalchemy.orm import relationship
 from app.database.connection import Base
@@ -10,6 +10,7 @@ class User(Base):
     name = Column(String, nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
+    token_version = Column(Integer, nullable=False, default=0, server_default=text("0"))
     is_admin = Column(Boolean, default=False)
     streak = Column(Integer, default=0, nullable=False)
     is_suspended = Column(Boolean, default=False, nullable=False, server_default=false())
@@ -47,4 +48,3 @@ class User(Base):
     recovery_logs = relationship("RecoveryLog", cascade="all, delete-orphan")
     nutrition_logs = relationship("NutritionLog", cascade="all, delete-orphan")
     recipes = relationship("Recipe", cascade="all, delete-orphan")
-

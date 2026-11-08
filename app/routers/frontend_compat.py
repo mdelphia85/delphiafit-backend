@@ -1,8 +1,8 @@
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from typing import Any, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from sqlalchemy.orm import Session
 
 from app.crud.workout_log import create_workout_log
@@ -28,6 +28,19 @@ class ProfileUpdate(BaseModel):
     height: Optional[str] = None
     sex: Optional[Literal["male", "female"]] = None
     activity_level: Optional[Literal["sedentary", "light", "moderate", "very_active", "extra_active"]] = None
+
+    @field_validator("dob")
+    @classmethod
+    def validate_dob(cls, value: Optional[str]) -> Optional[str]:
+        if value in (None, ""):
+            return None
+        try:
+            parsed = date.fromisoformat(value)
+        except ValueError as exc:
+            raise ValueError("Date of birth must use YYYY-MM-DD format") from exc
+        if parsed.isoformat() != value or parsed > date.today():
+            raise ValueError("Date of birth must be a valid past or current date")
+        return value
 
 
 class ProgressDailyInput(BaseModel):

@@ -221,12 +221,22 @@ def suspend_user(
     db: Session = Depends(get_db),
     admin=Depends(verify_admin),
 ):
-    user = _get_user(db, user_id)
+    user = (
+        db.query(User)
+        .filter(User.id == user_id)
+        .with_for_update()
+        .populate_existing()
+        .first()
+    )
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
     target = body.suspended if body and body.suspended is not None else not user.is_suspended
     if target and user.id == admin["admin_id"]:
         raise HTTPException(status_code=400, detail="You cannot suspend your own account")
     if target and user.is_admin and _admin_count(db) <= 1:
         raise HTTPException(status_code=400, detail="Cannot suspend the last admin")
+    if user.is_suspended != target:
+        user.token_version = User.token_version + 1
     user.is_suspended = target
     user.suspended_at = datetime.utcnow() if target else None
     db.commit()

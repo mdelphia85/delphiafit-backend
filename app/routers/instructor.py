@@ -37,7 +37,7 @@ class FeedbackCreate(BaseModel):
 def require_instructor(db: Session, instructor_id: int, coach_id: int):
     instructor = db.query(Instructor).filter(
         Instructor.id == instructor_id,
-        Instructor.user_id == coach_id,
+        Instructor.owner_coach_id == coach_id,
         Instructor.active.is_(True),
     ).first()
     if instructor is None:
@@ -47,7 +47,7 @@ def require_instructor(db: Session, instructor_id: int, coach_id: int):
 
 @router.post("/create")
 def create_instructor(data: InstructorCreate, coach=Depends(get_current_coach), db: Session = Depends(get_db)):
-    return crud.create_instructor(db, {**data.model_dump(), "user_id": coach.id})
+    return crud.create_instructor(db, {**data.model_dump(), "user_id": coach.id, "owner_coach_id": coach.id})
 
 
 @router.get("/list/{agency}")
@@ -77,7 +77,7 @@ def add_feedback(data: FeedbackCreate, coach=Depends(get_current_coach), db: Ses
 
 @router.get("/feedback/{user_id}")
 def list_feedback(user_id: int, coach=Depends(get_current_coach), db: Session = Depends(get_db)):
-    instructor_ids = db.query(Instructor.id).filter(Instructor.user_id == coach.id, Instructor.active.is_(True)).subquery()
+    instructor_ids = db.query(Instructor.id).filter(Instructor.owner_coach_id == coach.id, Instructor.active.is_(True)).subquery()
     return db.query(InstructorFeedback).filter(
         InstructorFeedback.instructor_id.in_(instructor_ids),
         InstructorFeedback.user_id == user_id,

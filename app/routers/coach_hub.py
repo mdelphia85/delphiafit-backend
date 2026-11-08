@@ -28,6 +28,7 @@ from app.models.team import Team
 from app.models.user import User
 from app.models.weight import WeightLog
 from app.models.workout_log import WorkoutLog
+from app.schemas.invite import PendingInviteList
 from app.services.coach_access import (
     accessible_team_ids,
     get_accessible_team,
@@ -707,7 +708,7 @@ def invite_team_coach(
         delivered = send_coach_invitation(invite.email, invite.token)
     except Exception:
         delivered = False
-    return {"invite_id": invite.id, "delivery_configured": delivered, "invite_token": invite.token}
+    return {"invite_id": invite.id, "delivery_configured": delivered}
 
 
 # ---------------------------------------------------------------------------
@@ -780,7 +781,7 @@ def delete_drill(drill_id: int, coach: Coach = Depends(get_current_coach), db: S
 # ---------------------------------------------------------------------------
 # Pending invitations
 # ---------------------------------------------------------------------------
-@router.get("/invitations")
+@router.get("/invitations", response_model=PendingInviteList)
 def list_invitations(coach: Coach = Depends(get_current_coach), db: Session = Depends(get_db)):
     invites = db.query(Invite).filter(Invite.coach_id == coach.id).order_by(Invite.created_at.desc()).all()
     now = datetime.utcnow()

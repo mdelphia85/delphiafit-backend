@@ -46,10 +46,51 @@ def test_urgent_symptoms_do_not_return_a_workout(message):
 @pytest.mark.parametrize(("message", "expected"), [
     ("How do I recover after training?", "rest day"),
     ("What should I eat?", "protein source"),
-    ("Make me a workout", "available equipment"),
+    ("Make me a workout", "sets"),
+    ("I am a beginner. Give me a bodyweight workout.", "Incline push-ups"),
+    ("Give me a 10-minute beginner bodyweight workout.", "about 10 minutes"),
     ("What time is it?", "cannot answer every free-form question"),
 ])
 def test_supported_and_unsupported_questions(message, expected):
     response = AIEngine().coach({}, message)["coach_response"]
     assert expected in response
     assert "Your message:" not in response
+
+
+def test_beginner_bodyweight_workout_is_structured_and_practical():
+    response = AIEngine().coach(
+        {"experience": "beginner"},
+        "Give me a beginner bodyweight workout.",
+    )["coach_response"]
+    assert "warm-up" in response.lower()
+    assert "2 rounds" in response
+    assert "chair squats" in response.lower()
+    assert "glute bridges" in response.lower()
+    assert "rest" in response.lower()
+    assert "Give me a beginner bodyweight workout." not in response
+
+
+def test_beginner_workout_respects_time_in_user_data():
+    response = AIEngine().coach(
+        {"experience": "beginner", "available_minutes": 10},
+        "Give me a workout.",
+    )["coach_response"]
+    assert "about 10 minutes" in response
+    assert "2 rounds" in response
+    assert "15-30 seconds" in response
+
+
+def test_20_minute_beginner_workout_has_a_complete_time_budget():
+    response = AIEngine().coach(
+        {"experience": "beginner"},
+        "Give me a 20-minute beginner bodyweight workout.",
+    )["coach_response"]
+    assert "20 minutes total" in response
+    assert "Warm-up (3 minutes)" in response
+    assert "Main circuit (14 minutes)" in response
+    assert "3 rounds" in response
+    assert "45-second station" in response
+    assert "15 seconds after every station" in response
+    assert "60 seconds after rounds 1 and 2" in response
+    assert "Cool-down (3 minutes)" in response
+    assert "3 + 14 + 3 = 20 minutes" in response

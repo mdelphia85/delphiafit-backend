@@ -9,6 +9,7 @@ from app.crud.team import TeamCRUD
 from app.database.connection import get_db
 from app.models.client import Client
 from app.models.coach import Coach
+from app.schemas.invite import InviteSummary
 from app.services.coach_access import get_accessible_team, get_managed_client
 
 router = APIRouter(prefix="/team", tags=["Team"])
@@ -133,7 +134,7 @@ def get_team_recruits(team_id: int, coach: Coach = Depends(get_current_coach), d
     return team_crud.get_team_recruits(db, team_id)
 
 
-@router.get("/{team_id}/invites")
+@router.get("/{team_id}/invites", response_model=list[InviteSummary])
 def get_team_invites(team_id: int, coach: Coach = Depends(get_current_coach), db: Session = Depends(get_db)):
     get_accessible_team(db, coach, team_id)
     return team_crud.get_team_invites(db, team_id)

@@ -1,0 +1,356 @@
+name: Backend container verification
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  disposable-postgres:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18.6
+        env:
+          POSTGRES_DB: delphiafit_staging_test
+          POSTGRES_USER: staging_test
+          POSTGRES_PASSWORD: disposable-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U staging_test -d delphiafit_staging_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify disposable PostgreSQL and backend container
+        env:
+          DATABASE_URL: postgresql://staging_test:disposable-only@127.0.0.1:5432/delphiafit_staging_test
+        run: |
+          set -Eeuo pipefail
+
+          MIGRATION_ONE="delphiafit-migration-one"
+          MIGRATION_TWO="delphiafit-migration-two"
+          BACKEND_CONTAINER="delphiafit-backend-ci"
+          TOKEN_FILE="$RUNNER_TEMP/delphiafit-ci-bearer"
+          MARKERS_FILE="$RUNNER_TEMP/delphiafit-ci-markers"
+          IMAGE="delphiafit-backend:ci"
+          TEMP_LOG_FILES=()
+
+          capture_and_scan_logs() {
+            container_name="$1"
+            log_file="$RUNNER_TEMP/${container_name}.raw.log"
+            safe_log="${log_file%.raw.log}.sanitized.log"
+            scanner_output="${safe_log%.sanitized.log}.scanner-output"
+            TEMP_LOG_FILES+=("$log_file" "$safe_log" "$safe_log.tmp" "$scanner_output")
+            if ! rm -f -- "$log_file" "$safe_log" "$safe_log.tmp" "$scanner_output"; then
+              echo "::error::Log scan incomplete for $container_name: temporary log setup failed (status 1); diagnostics suppressed"
+              return 1
+            fi
+
+            if ! docker container inspect "$container_name" >/dev/null 2>&1; then
+              echo "::error::Log scan incomplete for $container_name: container unavailable (status 1); diagnostics suppressed"
+              return 1
+            fi
+            if ! docker logs "$container_name" >"$log_file" 2>&1; then
+              echo "::error::Log scan incomplete for $container_name: log retrieval failed (status 1); diagnostics suppressed"
+              return 1
+            fi
+            if [ ! -s "$log_file" ]; then
+              echo "::error::Log scan incomplete for $container_name: required logs are empty (status 1); diagnostics suppressed"
+              return 1
+            fi
+
+            if python - "$log_file" "$safe_log" "$MARKERS_FILE" "$TOKEN_FILE" >"$scanner_output" 2>&1 <<'PY'
+          import sys
+          import os
+          import stat
+          from pathlib import Path
+
+          raw_path, safe_path, markers_path, token_path = map(Path, sys.argv[1:])
+          try:
+              for marker_path in (markers_path, token_path):
+                  if not marker_path.is_file():
+                      raise ValueError("required marker file is missing")
+                  if marker_path.stat().st_mode & (stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH) == 0:
+                      raise ValueError("required marker file is unreadable")
+
+              marker_lines = markers_path.read_bytes().splitlines()
+              bearer = token_path.read_bytes().strip()
+              markers = [marker for marker in marker_lines if marker]
+              if not markers or any(not marker for marker in marker_lines) or not bearer:
+                  raise ValueError("required marker set is empty or incomplete")
+              markers.append(bearer)
+
+              raw = raw_path.read_bytes()
+              found = any(marker in raw for marker in markers)
+              sanitized = raw
+              for marker in sorted(set(markers), key=len, reverse=True):
+                  sanitized = sanitized.replace(marker, b"[REDACTED]")
+
+              temporary_path = safe_path.with_name(safe_path.name + ".tmp")
+              temporary_path.write_bytes(sanitized)
+              os.replace(temporary_path, safe_path)
+              if found:
+                  print("Credential marker detected; complete sanitized diagnostics available.", file=sys.stderr)
+                  raise SystemExit(2)
+              raise SystemExit(0)
+          except SystemExit:
+              raise
+          except Exception:
+              print("Credential scan initialization or processing failed; diagnostics suppressed.", file=sys.stderr)
+              raise SystemExit(3)
+          PY
+            then
+              scanner_status=0
+            else
+              scanner_status=$?
+            fi
+
+            if [ "$scanner_status" -ne 0 ] && [ "$scanner_status" -ne 2 ]; then
+              echo "::error::Log scan incomplete for $container_name (status $scanner_status); diagnostics suppressed"
+              return 1
+            fi
+            if [ ! -s "$safe_log" ]; then
+              echo "::error::Log scan incomplete for $container_name: sanitized output unavailable (status 1); diagnostics suppressed"
+              return 1
+            fi
+            if [ "$scanner_status" -eq 2 ]; then
+              echo "::error::Credential detected in $container_name logs; complete sanitized diagnostics follow"
+            else
+              echo "Credential scan passed for $container_name; sanitized diagnostics follow"
+            fi
+            if ! cat -- "$safe_log" 2>/dev/null; then
+              echo "::error::Sanitized diagnostics could not be displayed for $container_name (status 1)" >&2
+              return 1
+            fi
+            if [ "$scanner_status" -ne 0 ]; then
+              return 1
+            fi
+          }
+
+          cleanup() {
+            original_status=$?
+            trap - EXIT
+            set +e
+
+            scan_status=0
+            for container in "$MIGRATION_ONE" "$MIGRATION_TWO" "$BACKEND_CONTAINER"; do
+              if ! capture_and_scan_logs "$container"; then
+                scan_status=1
+              fi
+            done
+
+            cleanup_status=0
+            for container in "$BACKEND_CONTAINER" "$MIGRATION_ONE" "$MIGRATION_TWO"; do
+              if docker container inspect "$container" >/dev/null 2>&1; then
+                running="$(docker inspect --format '{{.State.Running}}' "$container" 2>/dev/null)"
+                if [ "$running" = "true" ] && ! timeout 20 docker stop "$container" >/dev/null 2>&1; then
+                  echo "::error::Failed to stop test container $container"
+                  cleanup_status=1
+                fi
+                if ! docker rm "$container" >/dev/null 2>&1; then
+                  echo "::error::Failed to remove test container $container"
+                  cleanup_status=1
+                fi
+              fi
+            done
+
+            for temporary_file in "$TOKEN_FILE" "$MARKERS_FILE" "${TEMP_LOG_FILES[@]}"; do
+              if [ -e "$temporary_file" ]; then
+                if ! shred -u -z -- "$temporary_file" 2>/dev/null; then
+                  rm -f -- "$temporary_file"
+                  echo "::error::Secure cleanup failed for a temporary credential or log file"
+                  cleanup_status=1
+                fi
+              fi
+            done
+
+            if [ "$original_status" -ne 0 ]; then
+              exit "$original_status"
+            fi
+            if [ "$cleanup_status" -ne 0 ]; then
+              exit "$cleanup_status"
+            fi
+            exit "$scan_status"
+          }
+          trap cleanup EXIT
+
+          echo "Checking connectivity to disposable PostgreSQL 18.6."
+          postgres_ready=false
+          for attempt in $(seq 1 30); do
+            probe_name="delphiafit-pg-readiness-${attempt}"
+            probe_log="$RUNNER_TEMP/${probe_name}.log"
+            TEMP_LOG_FILES+=("$probe_log")
+            if timeout 10 docker run --name "$probe_name" --network host postgres:18.6 \
+              pg_isready -t 3 -h 127.0.0.1 -p 5432 -U staging_test -d delphiafit_staging_test \
+              >"$probe_log" 2>&1; then
+              postgres_ready=true
+              docker rm "$probe_name" >/dev/null
+              break
+            fi
+            docker rm "$probe_name" >/dev/null 2>&1 || true
+            if [ "$attempt" -eq 30 ]; then
+              echo "Disposable PostgreSQL did not become ready after bounded retries." >&2
+              cat "$probe_log" >&2
+              exit 1
+            fi
+            sleep 2
+          done
+          if [ "$postgres_ready" != true ]; then
+            echo "Disposable PostgreSQL readiness check failed." >&2
+            exit 1
+          fi
+
+          JWT_SECRET="$(openssl rand -hex 32)"
+          export JWT_SECRET
+          SYNTHETIC_MARKER="ci-synthetic-$(openssl rand -hex 16)"
+          USER_EMAIL="ci-auth-${SYNTHETIC_MARKER}@example.com"
+          USER_NAME="CI-${SYNTHETIC_MARKER}"
+          USER_PASSWORD="CI-Password-${SYNTHETIC_MARKER}"
+
+          for credential in \
+            "$JWT_SECRET" \
+            "$DATABASE_URL" \
+            "disposable-only" \
+            "$SYNTHETIC_MARKER" \
+            "$USER_EMAIL" \
+            "$USER_NAME" \
+            "$USER_PASSWORD"; do
+            echo "::add-mask::$credential"
+          done
+
+          printf '%s\n' \
+            "$JWT_SECRET" \
+            "$DATABASE_URL" \
+            "disposable-only" \
+            "$SYNTHETIC_MARKER" \
+            "$USER_EMAIL" \
+            "$USER_NAME" \
+            "$USER_PASSWORD" >"$MARKERS_FILE"
+          chmod 600 "$MARKERS_FILE"
+
+          echo "Building backend image."
+          docker build --tag "$IMAGE" .
+
+          run_migration() {
+            container_name="$1"
+            if ! docker run --detach --name "$container_name" --network host \
+              --env DATABASE_URL \
+              --env JWT_SECRET \
+              "$IMAGE" \
+              python -m app.database.migrate >/dev/null; then
+              echo "Could not start migration container $container_name." >&2
+              return 1
+            fi
+
+            if migration_status="$(timeout 120 docker wait "$container_name")"; then
+              if [ "$migration_status" = "0" ]; then
+                return 0
+              fi
+              echo "Migration container $container_name failed with status $migration_status." >&2
+              return "$migration_status"
+            else
+              wait_status=$?
+              echo "Waiting for migration container $container_name failed with status $wait_status." >&2
+              return "$wait_status"
+            fi
+          }
+
+          run_migration "$MIGRATION_ONE"
+          run_migration "$MIGRATION_TWO"
+
+          docker run --detach --network host \
+            --name "$BACKEND_CONTAINER" \
+            --env DATABASE_URL \
+            --env JWT_SECRET \
+            --env PORT=8080 \
+            "$IMAGE" >/dev/null
+
+          echo "Waiting for initial backend health response."
+          initial_health_ok=false
+          for attempt in $(seq 1 30); do
+            if ! docker inspect --format '{{.State.Running}}' "$BACKEND_CONTAINER" | grep -q '^true$'; then
+              echo "Backend container exited before becoming healthy." >&2
+              exit 1
+            fi
+            http_status="$(curl --silent --show-error --output /dev/null \
+              --write-out '%{http_code}' --max-time 5 http://127.0.0.1:8080/health || true)"
+            if [ "$http_status" = "200" ]; then
+              initial_health_ok=true
+              break
+            fi
+            sleep 2
+          done
+          if [ "$initial_health_ok" != true ]; then
+            echo "Initial backend health check did not return HTTP 200." >&2
+            exit 1
+          fi
+
+          export USER_EMAIL USER_PASSWORD USER_NAME TOKEN_FILE
+          python - <<'PY'
+          import json
+          import os
+          import sys
+          from pathlib import Path
+          from urllib.error import HTTPError, URLError
+          from urllib.request import Request, urlopen
+
+          base_url = "http://127.0.0.1:8080"
+
+          def request(method, path, payload=None, token=None):
+              headers = {}
+              body = None
+              if payload is not None:
+                  headers["Content-Type"] = "application/json"
+                  body = json.dumps(payload).encode("utf-8")
+              if token:
+                  headers["Authorization"] = f"Bearer {token}"
+              req = Request(base_url + path, data=body, headers=headers, method=method)
+              try:
+                  with urlopen(req, timeout=10) as response:
+                      return response.status, response.read()
+              except HTTPError as error:
+                  return error.code, error.read()
+              except URLError as error:
+                  raise AssertionError(f"{method} {path} could not reach the backend") from error
+
+          status, _ = request(
+              "POST",
+              "/auth/register",
+              {
+                  "name": os.environ["USER_NAME"],
+                  "email": os.environ["USER_EMAIL"],
+                  "password": os.environ["USER_PASSWORD"],
+              },
+          )
+          assert status == 200, f"Synthetic registration returned HTTP {status}"
+
+          status, body = request(
+              "POST",
+              "/auth/login",
+              {"email": os.environ["USER_EMAIL"], "password": os.environ["USER_PASSWORD"]},
+          )
+          assert status == 200, f"Synthetic authentication returned HTTP {status}"
+          access_token = json.loads(body).get("access_token")
+          assert access_token, "Authentication response omitted its access token"
+
+          Path(os.environ["TOKEN_FILE"]).write_text(access_token, encoding="utf-8")
+          os.chmod(os.environ["TOKEN_FILE"], 0o600)
+          print(f"::add-mask::{access_token}")
+
+          status, _ = request("GET", "/ai/records", token=access_token)
+          assert status == 200, f"Authenticated protected request returned HTTP {status}"
+
+          status, _ = request("GET", "/ai/records")
+          assert status == 401, f"Unauthenticated protected request returned HTTP {status}, expected 401"
+
+          status, _ = request("GET", "/health")
+          assert status == 200, f"Final backend health check returned HTTP {status}"
+          print("Synthetic registration, authentication, protected access, and unauthenticated rejection passed.")
+          PY

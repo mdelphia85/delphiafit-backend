@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr
 from datetime import datetime, timedelta
 import hashlib
-import os
+import logging
 import secrets
 from sqlalchemy.orm import Session
 
@@ -11,10 +11,12 @@ from app.models.user import User
 from app.models.login_log import LoginLog
 from app.database.connection import get_db
 from app.auth.hashing import hash_password, verify_password
-from app.auth.jwt_handler import create_access_token, decode_access_token
+from app.auth.dependencies import get_current_user
+from app.auth.jwt_handler import create_access_token
 from app.services.email_delivery import send_user_password_reset
 
 router = APIRouter(tags=["Auth"])
+logger = logging.getLogger(__name__)
 
 
 class ForgotPasswordRequest(BaseModel):
@@ -70,7 +72,12 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
     if db_user.is_suspended:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account suspended")
 
-    token = create_access_token({"sub": str(db_user.id), "email": db_user.email, "actor_type": "user"})
+    token = create_access_token({
+        "sub": str(db_user.id),
+        "email": db_user.email,
+        "actor_type": "user",
+        "token_version": db_user.token_version,
+    })
 
     db.add(LoginLog(user_id=db_user.id, timestamp=datetime.utcnow()))
     db.commit()
@@ -84,32 +91,31 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
 
 @router.post("/forgot-password")
 def forgot_password(data: ForgotPasswordRequest, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == data.email).first()
-    debug_token = None
-    delivered = False
+    user = db.query(User).filter(User.email == data.email).with_for_update().populate_existing().first()
     if user:
         raw_token = secrets.token_urlsafe(32)
         user.password_reset_token_hash = _token_hash(raw_token)
         user.password_reset_expires_at = datetime.utcnow() + timedelta(hours=1)
         db.commit()
         try:
-            delivered = send_user_password_reset(user.email, raw_token)
+            if not send_user_password_reset(user.email, raw_token):
+                logger.warning("User password recovery email is not configured")
         except Exception:
-            delivered = False
-        if os.getenv("PASSWORD_RESET_DEBUG_RETURN_TOKEN", "false").lower() in {"1", "true", "yes"}:
-            debug_token = raw_token
-
-    response = {"message": "If that account exists, reset instructions have been sent.", "delivery_configured": delivered}
-    if debug_token:
-        response["debug_token"] = debug_token
-    return response
+            logger.warning("Unable to deliver user password recovery email")
+    return {"message": "If that account exists, reset instructions have been sent."}
 
 
 @router.post("/reset-password")
 def reset_password(data: ResetPasswordRequest, db: Session = Depends(get_db)):
     if len(data.new_password) < 10:
         raise HTTPException(status_code=400, detail="Password must be at least 10 characters")
-    user = db.query(User).filter(User.email == data.email).first()
+    user = (
+        db.query(User)
+        .filter(User.email == data.email)
+        .with_for_update()
+        .populate_existing()
+        .first()
+    )
     if (
         not user
         or not user.password_reset_token_hash
@@ -120,6 +126,7 @@ def reset_password(data: ResetPasswordRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Invalid or expired reset token")
 
     user.hashed_password = hash_password(data.new_password)
+    user.token_version = User.token_version + 1
     user.password_reset_token_hash = None
     user.password_reset_expires_at = None
     db.commit()
@@ -130,25 +137,16 @@ def reset_password(data: ResetPasswordRequest, db: Session = Depends(get_db)):
 # ---------------------------------------------------------
 @router.get("/me")
 def get_me(
-    token_data: dict = Depends(decode_access_token),
+    token_data: dict = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    user_id = token_data.get("sub")
-    email = token_data.get("email")
-
-    if not email:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token payload"
-        )
-
-    user = db.query(User).filter(User.id == int(user_id)).first() if user_id else None
-
+    try:
+        user_id = int(token_data.get("sub"))
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload")
+    user = db.query(User).filter(User.id == user_id, User.email == token_data.get("email")).first()
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user token")
 
     return {
         "id": user.id,

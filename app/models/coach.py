@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, text
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
@@ -14,6 +14,7 @@ class Coach(Base):
     organization = Column(String, nullable=True)
     role = Column(String, default="coach")  # head_coach, assistant, recruiter, etc.
     hashed_password = Column(String, nullable=True)
+    token_version = Column(Integer, nullable=False, default=0, server_default=text("0"))
     password_reset_token_hash = Column(String, nullable=True)
     password_reset_expires_at = Column(DateTime, nullable=True)
     is_active = Column(Boolean, default=True)

@@ -12,6 +12,7 @@ class InstructorCRUD:
     def create_instructor(self, db: Session, data: dict):
         inst = Instructor(
             user_id=data["user_id"],
+            owner_coach_id=data["owner_coach_id"],
             agency=data["agency"],
             role=data["role"],
             active=True,

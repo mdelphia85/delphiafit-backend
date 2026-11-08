@@ -13,10 +13,14 @@ from fastapi.testclient import TestClient  # noqa: E402
 from sqlalchemy import inspect  # noqa: E402
 
 from app.auth.hashing import hash_password  # noqa: E402
+from app.auth.jwt_handler import create_access_token  # noqa: E402
+from app.crud.coach import CoachCRUD  # noqa: E402
 from app.database.connection import SessionLocal, engine  # noqa: E402
 from app.database.migrate import run_migrations  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models.coach import Coach  # noqa: E402
+from app.models.coach_team_membership import CoachTeamMembership  # noqa: E402
+from app.models.invite import Invite  # noqa: E402
 from app.models.user import User  # noqa: E402
 from app.models.weight import WeightLog  # noqa: E402
 from app.models.workout_log import WorkoutLog  # noqa: E402
@@ -50,10 +54,54 @@ def make_coach(email=None):
     return {"id": coach_id, "email": email, "headers": bearer(r.json()["access_token"])}
 
 
+def make_admin_headers():
+    email = uniq("coach-admin")
+    registered = http.post("/auth/register", json={"name": "Coach Admin", "email": email, "password": PASSWORD})
+    assert registered.status_code == 200, registered.text
+    with SessionLocal() as db:
+        user = db.query(User).filter(User.email == email).one()
+        user.is_admin = True
+        db.commit()
+    response = http.post("/admin/login", json={"email": email, "password": PASSWORD})
+    assert response.status_code == 200, response.text
+    return bearer(response.json()["access_token"])
+
+
+def assert_no_credential_fields(value):
+    sensitive_fields = {
+        "hashed_password",
+        "password",
+        "password_reset_token_hash",
+        "password_reset_expires_at",
+        "token_version",
+        "token",
+        "token_hash",
+        "token_digest",
+        "secret",
+        "secret_token",
+        "reset_token",
+        "access_token",
+        "invitation_token",
+        "invite_token",
+    }
+    if isinstance(value, dict):
+        assert sensitive_fields.isdisjoint(value)
+        for nested in value.values():
+            assert_no_credential_fields(nested)
+    elif isinstance(value, list):
+        for nested in value:
+            assert_no_credential_fields(nested)
+
+
 def make_team(coach, name="Varsity"):
     r = http.post("/staff/teams", headers=coach["headers"], json={"name": name, "sport": "soccer"})
     assert r.status_code == 201, r.text
     return r.json()
+
+
+def invitation_token(invite_id):
+    with SessionLocal() as db:
+        return db.query(Invite).filter(Invite.id == invite_id).one().token
 
 
 def make_client(coach, team_id=None, name="Client One"):
@@ -64,7 +112,7 @@ def make_client(coach, team_id=None, name="Client One"):
         body["team_id"] = team_id
     r = http.post("/staff/clients/invite", headers=coach["headers"], json=body)
     assert r.status_code == 200, r.text
-    token = r.json()["invite_token"]
+    token = invitation_token(r.json()["invite_id"])
     r = http.post("/staff/invitations/accept", json={"invitation_token": token, "name": name, "password": PASSWORD})
     assert r.status_code == 200, r.text
     r = http.post("/auth/login", json={"email": email, "password": PASSWORD})
@@ -142,37 +190,226 @@ def test_coach_login_rejects_bad_password():
 
 
 def test_password_reset_flow(monkeypatch):
+    sent = []
+    monkeypatch.setattr("app.routers.coach.send_coach_password_reset", lambda email, token: sent.append((email, token)) or True)
     monkeypatch.setenv("PASSWORD_RESET_DEBUG_RETURN_TOKEN", "true")
     coach = make_coach()
+    old_headers = coach["headers"]
     r = http.post("/coach/password/forgot", json={"email": coach["email"]})
-    token = r.json()["debug_token"]
+    missing = http.post("/coach/password/forgot", json={"email": uniq("unknown-coach")})
+    assert r.json() == missing.json()
+    assert "debug_token" not in r.json()
+    token = sent[0][1]
     assert http.post("/coach/password/reset", json={"email": coach["email"], "token": "bad", "new_password": "NewPassw0rd!!"}).status_code == 400
     assert http.post("/coach/password/reset", json={"email": coach["email"], "token": token, "new_password": "short"}).status_code == 400
     r = http.post("/coach/password/reset", json={"email": coach["email"], "token": token, "new_password": "NewPassw0rd!!"})
     assert r.status_code == 200
+    assert http.get("/staff/clients", headers=old_headers).status_code == 401
     assert http.post("/coach/login", json={"email": coach["email"], "password": PASSWORD}).status_code == 401
-    assert http.post("/coach/login", json={"email": coach["email"], "password": "NewPassw0rd!!"}).status_code == 200
+    fresh = http.post("/coach/login", json={"email": coach["email"], "password": "NewPassw0rd!!"})
+    assert fresh.status_code == 200
+    fresh_headers = bearer(fresh.json()["access_token"])
+    assert http.get("/staff/clients", headers=fresh_headers).status_code == 200
+    assert http.post("/coach/password/forgot", json={"email": coach["email"]}).status_code == 200
+    second_token = sent[1][1]
+    assert http.post("/coach/password/reset", json={
+        "email": coach["email"],
+        "token": second_token,
+        "new_password": "Another0ne!!!",
+    }).status_code == 200
+    assert http.get("/staff/clients", headers=fresh_headers).status_code == 401
     # token is single use
     assert http.post("/coach/password/reset", json={"email": coach["email"], "token": token, "new_password": "Another0ne!!!"}).status_code == 400
+    assert http.post("/coach/login", json={"email": coach["email"], "password": "Another0ne!!!"}).status_code == 200
 
 
-def test_coach_invitation_flow_gives_team_access():
+def test_coach_tokens_without_a_version_claim_are_rejected():
+    coach = make_coach()
+    legacy = create_access_token({
+        "sub": str(coach["id"]),
+        "email": coach["email"],
+        "actor_type": "coach",
+        "role": "coach",
+    })
+    assert http.get("/staff/clients", headers=bearer(legacy)).status_code == 401
+
+
+def test_coach_tokens_with_stale_or_forged_versions_are_rejected():
+    coach = make_coach()
+    with SessionLocal() as db:
+        row = db.query(Coach).filter(Coach.id == coach["id"]).one()
+        current_version = row.token_version
+        row.token_version += 1
+        db.commit()
+    stale = create_access_token({
+        "sub": str(coach["id"]),
+        "email": coach["email"],
+        "actor_type": "coach",
+        "role": "coach",
+        "token_version": current_version,
+    })
+    assert http.get("/staff/clients", headers=bearer(stale)).status_code == 401
+
+
+def test_coach_deactivation_and_reactivation_never_revive_old_sessions():
+    admin = make_admin_headers()
+    coach = make_coach()
+    unaffected = make_coach()
+    old_headers = coach["headers"]
+    unaffected_headers = unaffected["headers"]
+
+    assert http.get("/staff/clients", headers=old_headers).status_code == 200
+    assert http.get("/staff/clients", headers=unaffected_headers).status_code == 200
+
+    deactivated = http.delete(f"/coach/{coach['id']}/deactivate", headers=admin)
+    assert deactivated.status_code == 200, deactivated.text
+    assert_no_credential_fields(deactivated.json())
+    assert http.get("/staff/clients", headers=old_headers).status_code == 401
+    assert http.get("/staff/clients", headers=unaffected_headers).status_code == 200
+
+    reactivated = http.put(
+        f"/coach/{coach['id']}/update",
+        headers=admin,
+        json={"updates": {"is_active": True}},
+    )
+    assert reactivated.status_code == 200, reactivated.text
+    assert reactivated.json()["is_active"] is True
+    assert_no_credential_fields(reactivated.json())
+    assert http.get("/staff/clients", headers=old_headers).status_code == 401
+
+    fresh_login = http.post("/coach/login", json={"email": coach["email"], "password": PASSWORD})
+    assert fresh_login.status_code == 200, fresh_login.text
+    fresh_headers = bearer(fresh_login.json()["access_token"])
+    assert http.get("/staff/clients", headers=fresh_headers).status_code == 200
+
+    assert http.delete(f"/coach/{coach['id']}/deactivate", headers=admin).status_code == 200
+    assert http.put(
+        f"/coach/{coach['id']}/update",
+        headers=admin,
+        json={"updates": {"is_active": True}},
+    ).status_code == 200
+    assert http.get("/staff/clients", headers=old_headers).status_code == 401
+    assert http.get("/staff/clients", headers=fresh_headers).status_code == 401
+    assert http.get("/staff/clients", headers=unaffected_headers).status_code == 200
+
+    newest_login = http.post("/coach/login", json={"email": coach["email"], "password": PASSWORD})
+    assert newest_login.status_code == 200
+    assert http.get("/staff/clients", headers=bearer(newest_login.json()["access_token"])).status_code == 200
+
+
+def test_failed_coach_deactivation_rolls_back_active_state_and_token_version(monkeypatch):
+    coach = make_coach()
+    with SessionLocal() as db:
+        row = db.query(Coach).filter(Coach.id == coach["id"]).one()
+        original_version = row.token_version
+
+        def fail_commit():
+            raise RuntimeError("synthetic coach deactivation failure")
+
+        monkeypatch.setattr(db, "commit", fail_commit)
+        with pytest.raises(RuntimeError, match="synthetic coach deactivation failure"):
+            CoachCRUD().deactivate_coach(db, coach["id"])
+
+        db.expire_all()
+        row = db.query(Coach).filter(Coach.id == coach["id"]).one()
+        assert row.is_active is True
+        assert row.token_version == original_version
+
+    assert http.get("/staff/clients", headers=coach["headers"]).status_code == 200
+
+
+def test_admin_coach_responses_exclude_credentials_and_require_admin():
+    admin = make_admin_headers()
+    created = http.post(
+        "/coach/create",
+        headers=admin,
+        json={"email": uniq("admin-created-coach"), "name": "New Coach", "role": "coach"},
+    )
+    assert created.status_code == 200, created.text
+    assert_no_credential_fields(created.json())
+
+    regular_email = uniq("regular")
+    assert http.post(
+        "/auth/register",
+        json={"name": "Regular User", "email": regular_email, "password": PASSWORD},
+    ).status_code == 200
+    regular_token = http.post(
+        "/auth/login",
+        json={"email": regular_email, "password": PASSWORD},
+    ).json()["access_token"]
+    regular = bearer(regular_token)
+
+    coach = make_coach()
+    team = make_team(coach)
+    make_client(coach, team["id"])
+
+    updated = http.put(
+        f"/coach/{coach['id']}/update",
+        headers=admin,
+        json={"updates": {"name": "Updated Coach Name"}},
+    )
+    assert updated.status_code == 200, updated.text
+    assert updated.json()["name"] == "Updated Coach Name"
+    assert_no_credential_fields(updated.json())
+
+    for path in (
+        f"/coach/{coach['id']}",
+        f"/coach/email/{coach['email']}",
+        f"/coach/{coach['id']}/teams",
+        f"/coach/{coach['id']}/clients",
+    ):
+        response = http.get(path, headers=admin)
+        assert response.status_code == 200, response.text
+        assert_no_credential_fields(response.json())
+        assert http.get(path).status_code == 401
+        assert http.get(path, headers=regular).status_code == 403
+
+    denied_update = http.put(
+        f"/coach/{coach['id']}/update",
+        headers=regular,
+        json={"updates": {"name": "Unauthorized"}},
+    )
+    assert denied_update.status_code == 403
+    assert http.put(
+        f"/coach/{coach['id']}/update",
+        json={"updates": {"name": "Unauthorized"}},
+    ).status_code == 401
+    assert http.delete(f"/coach/{coach['id']}/deactivate", headers=regular).status_code == 403
+    assert http.delete(f"/coach/{coach['id']}/deactivate").status_code == 401
+
+
+def test_coach_password_reset_rejects_expired_token(monkeypatch):
+    sent = []
+    monkeypatch.setattr("app.routers.coach.send_coach_password_reset", lambda email, token: sent.append((email, token)) or True)
+    coach = make_coach()
+    assert http.post("/coach/password/forgot", json={"email": coach["email"]}).status_code == 200
+    with SessionLocal() as db:
+        row = db.query(Coach).filter(Coach.id == coach["id"]).one()
+        row.password_reset_expires_at = datetime.utcnow() - timedelta(minutes=1)
+        db.commit()
+    assert http.post("/coach/password/reset", json={"email": coach["email"], "token": sent[0][1], "new_password": "Another0ne!!!"}).status_code == 400
+
+
+def test_coach_invitation_flow_gives_team_access(monkeypatch):
+    monkeypatch.setattr("app.routers.coach_hub.send_coach_invitation", lambda email, token: True)
     owner = make_coach()
     team = make_team(owner)
     client = make_client(owner, team["id"])
     assistant_email = uniq("assistant")
     r = http.post(f"/staff/teams/{team['id']}/coach-invitations", headers=owner["headers"], json={"email": assistant_email, "role": "assistant_coach"})
     assert r.status_code == 201, r.text
-    token = r.json()["invite_token"]
+    assert "invite_token" not in r.json()
+    invite_id = r.json()["invite_id"]
+    token = invitation_token(invite_id)
 
-    lookup = http.get("/staff/invitations/lookup", params={"token": token})
-    assert lookup.json() == {"email": assistant_email, "role": "coach"}
+    lookup = http.post("/staff/invitations/lookup", json={"token": token})
+    assert lookup.json() == {"email": assistant_email, "role": "coach", "existing_coach": False}
     # a coach invite cannot be accepted on the client endpoint
     assert http.post("/staff/invitations/accept", json={"invitation_token": token, "name": "Asst", "password": PASSWORD}).status_code == 400
 
     r = http.post("/coach/invitations/accept", json={"invitation_token": token, "name": "Assistant", "password": PASSWORD})
     assert r.status_code == 200, r.text
-    assert http.get("/staff/invitations/lookup", params={"token": token}).status_code == 404  # single use
+    assert http.post("/staff/invitations/lookup", json={"token": token}).status_code == 404  # single use
 
     login = http.post("/coach/login", json={"email": assistant_email, "password": PASSWORD})
     assert login.status_code == 200 and login.json()["team_id"] == team["id"]
@@ -182,13 +419,195 @@ def test_coach_invitation_flow_gives_team_access():
     # assistants are not team owners
     assert http.put(f"/staff/teams/{team['id']}", headers=headers, json={"name": "Renamed"}).status_code == 403
     assert http.post(f"/staff/teams/{team['id']}/coach-invitations", headers=headers, json={"email": uniq("x")}).status_code == 403
+    assert http.post("/coach/invite/accept", json={"token": token, "name": "Assistant"}).status_code == 400
 
 
-def test_client_cannot_be_invited_as_coach_and_roles_validated():
+def test_existing_coach_invitation_requires_recipient_and_preserves_credentials(monkeypatch):
+    monkeypatch.setattr("app.routers.coach_hub.send_coach_invitation", lambda email, token: True)
     owner = make_coach()
     team = make_team(owner)
-    r = http.post(f"/staff/teams/{team['id']}/coach-invitations", headers=owner["headers"], json={"email": uniq("c"), "role": "client"})
-    assert r.status_code == 400
+    invited_coach = make_coach()
+    old_headers = invited_coach["headers"]
+
+    invitation = http.post(
+        f"/staff/teams/{team['id']}/coach-invitations",
+        headers=owner["headers"],
+        json={"email": invited_coach["email"], "role": "assistant_coach"},
+    )
+    assert invitation.status_code == 201, invitation.text
+    assert "invite_token" not in invitation.json()
+    token = invitation_token(invitation.json()["invite_id"])
+
+    lookup = http.post("/staff/invitations/lookup", json={"token": token})
+    assert lookup.json()["existing_coach"] is True
+    owner_attempt = http.post(
+        "/coach/invitations/accept",
+        headers=owner["headers"],
+        json={"invitation_token": token, "name": "Taken Over", "password": "InvitationPass456!"},
+    )
+    assert owner_attempt.status_code == 403
+    assert invitation_token(invitation.json()["invite_id"]) == token
+    assert http.get("/staff/clients", headers=old_headers).status_code == 200
+    assert http.post("/coach/login", json={"email": invited_coach["email"], "password": PASSWORD}).status_code == 200
+    with SessionLocal() as db:
+        row = db.query(Coach).filter(Coach.id == invited_coach["id"]).one()
+        original_hash = row.hashed_password
+        original_version = row.token_version
+        original_role = row.role
+        row_id = row.id
+
+    intended_accept = http.post(
+        "/coach/invitations/accept",
+        headers=old_headers,
+        json={"invitation_token": token},
+    )
+    assert intended_accept.status_code == 200, intended_accept.text
+    assert http.get("/staff/clients", headers=old_headers).status_code == 200
+    assert http.post("/coach/login", json={"email": invited_coach["email"], "password": PASSWORD}).status_code == 200
+    with SessionLocal() as db:
+        row = db.query(Coach).filter(Coach.id == row_id).one()
+        assert row.hashed_password == original_hash
+        assert row.token_version == original_version
+        assert row.role == original_role
+        membership = db.query(CoachTeamMembership).filter_by(coach_id=row_id, team_id=team["id"]).one()
+        assert membership.role == "assistant_coach"
+
+
+def test_existing_coach_invitation_rejects_password_change_and_unrelated_recipient():
+    owner, intended, unrelated = make_coach(), make_coach(), make_coach()
+    team = make_team(owner)
+    invitation = http.post(
+        f"/staff/teams/{team['id']}/coach-invitations",
+        headers=owner["headers"],
+        json={"email": intended["email"], "role": "assistant_coach"},
+    )
+    token = invitation_token(invitation.json()["invite_id"])
+    assert http.post("/coach/invitations/accept", json={"invitation_token": token}).status_code == 401
+    owner_attempt = http.post(
+        "/coach/invitations/accept",
+        headers=unrelated["headers"],
+        json={"invitation_token": token},
+    )
+    assert owner_attempt.status_code == 403
+    password_attempt = http.post(
+        "/coach/invitations/accept",
+        headers=intended["headers"],
+        json={"invitation_token": token, "password": "InvitationPass456!"},
+    )
+    assert password_attempt.status_code == 400
+    assert http.get("/staff/clients", headers=intended["headers"]).status_code == 200
+
+
+def test_concurrent_existing_coach_invitation_acceptance_creates_one_membership():
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Barrier
+
+    owner, intended = make_coach(), make_coach()
+    team = make_team(owner)
+    invitation = http.post(
+        f"/staff/teams/{team['id']}/coach-invitations",
+        headers=owner["headers"],
+        json={"email": intended["email"], "role": "assistant_coach"},
+    )
+    token = invitation_token(invitation.json()["invite_id"])
+    start = Barrier(2)
+
+    def accept():
+        start.wait()
+        return http.post(
+            "/coach/invitations/accept",
+            headers=intended["headers"],
+            json={"invitation_token": token},
+        )
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        results = list(executor.map(lambda _: accept(), range(2)))
+
+    assert sorted(result.status_code for result in results) == [200, 400]
+    with SessionLocal() as db:
+        assert db.query(CoachTeamMembership).filter_by(coach_id=intended["id"], team_id=team["id"]).count() == 1
+        assert db.query(Invite).filter_by(id=invitation.json()["invite_id"], accepted=True).count() == 1
+
+
+def test_new_coach_invitation_registration_requires_password_and_is_single_use(monkeypatch):
+    monkeypatch.setattr("app.routers.coach_hub.send_coach_invitation", lambda email, token: True)
+    owner = make_coach()
+    team = make_team(owner)
+    email = uniq("new-invited-coach")
+    invitation = http.post(
+        f"/staff/teams/{team['id']}/coach-invitations",
+        headers=owner["headers"],
+        json={"email": email, "role": "assistant_coach"},
+    )
+    token = invitation_token(invitation.json()["invite_id"])
+    assert http.post(
+        "/coach/invitations/accept",
+        json={"invitation_token": token, "name": "New Coach"},
+    ).status_code == 400
+    accepted = http.post(
+        "/coach/invitations/accept",
+        json={"invitation_token": token, "name": "New Coach", "password": PASSWORD},
+    )
+    assert accepted.status_code == 200, accepted.text
+    assert http.post(
+        "/coach/invitations/accept",
+        json={"invitation_token": token, "name": "New Coach", "password": PASSWORD},
+    ).status_code == 400
+    assert http.post("/coach/login", json={"email": email, "password": PASSWORD}).status_code == 200
+
+
+def test_coach_invitation_acceptance_rejects_legacy_query_lookup_and_does_not_log_token(caplog):
+    owner = make_coach()
+    team = make_team(owner)
+    invitation = http.post(
+        f"/staff/teams/{team['id']}/coach-invitations",
+        headers=owner["headers"],
+        json={"email": uniq("lookup-marker"), "role": "assistant_coach"},
+    )
+    token = invitation_token(invitation.json()["invite_id"])
+    assert http.get("/staff/invitations/lookup", params={"token": token}).status_code == 405
+    result = http.post("/staff/invitations/lookup", json={"token": token})
+    assert result.status_code == 200
+    assert token not in result.text
+    assert token not in caplog.text
+
+
+def test_sensitive_query_values_are_removed_before_asgi_access_logging():
+    import asyncio
+    from starlette.responses import Response
+
+    from app.main import redact_sensitive_query_strings
+
+    marker = "synthetic-access-log-marker"
+
+    class Request:
+        scope = {"query_string": f"token={marker}&page=2".encode()}
+
+    async def call_next(request):
+        assert request.scope["query_string"] == b""
+        return Response()
+
+    asyncio.run(redact_sensitive_query_strings(Request(), call_next))
+
+
+def test_coach_invitation_existing_account_preserves_original_password_after_unauthorized_attempt(monkeypatch):
+    monkeypatch.setattr("app.routers.coach_hub.send_coach_invitation", lambda email, token: True)
+    owner = make_coach()
+    invited_coach = make_coach()
+    team = make_team(owner)
+    invitation = http.post(
+        f"/staff/teams/{team['id']}/coach-invitations",
+        headers=owner["headers"],
+        json={"email": invited_coach["email"], "role": "assistant_coach"},
+    )
+    token = invitation_token(invitation.json()["invite_id"])
+    denied = http.post(
+        "/coach/invitations/accept",
+        headers=owner["headers"],
+        json={"invitation_token": token, "name": "Unauthorized", "password": "InvitationPass456!"},
+    )
+    assert denied.status_code == 403
+    assert http.post("/coach/login", json={"email": invited_coach["email"], "password": PASSWORD}).status_code == 200
 
 
 def test_client_invitation_flow_and_lookup():
@@ -196,8 +615,9 @@ def test_client_invitation_flow_and_lookup():
     email = uniq("newclient")
     r = http.post("/staff/clients/invite", headers=coach["headers"], json={"email": email})
     assert r.status_code == 200
-    token = r.json()["invite_token"]
-    assert http.get("/staff/invitations/lookup", params={"token": token}).json()["role"] == "client"
+    assert "invite_token" not in r.json()
+    token = invitation_token(r.json()["invite_id"])
+    assert http.post("/staff/invitations/lookup", json={"token": token}).json()["role"] == "client"
     pending = http.get("/staff/invitations", headers=coach["headers"]).json()["invitations"]
     assert [(i["email"], i["accepted"]) for i in pending] == [(email, False)]
     assert http.post("/staff/invitations/accept", json={"invitation_token": token, "name": "New Client", "password": "short"}).status_code == 400
@@ -205,7 +625,6 @@ def test_client_invitation_flow_and_lookup():
     clients = http.get("/staff/clients", headers=coach["headers"]).json()["clients"]
     assert [c["email"] for c in clients] == [email]
     assert http.post("/auth/login", json={"email": email, "password": PASSWORD}).status_code == 200
-    # duplicate invite for an active client is rejected
     assert http.post("/staff/clients/invite", headers=coach["headers"], json={"email": email}).status_code == 400
 
 
@@ -219,13 +638,167 @@ def test_pending_invitation_can_be_revoked_only_by_owner():
     assert http.post("/invite/revoke", headers=b["headers"], json={"invite_id": invite_id}).status_code == 404
 
 
-def test_legacy_invite_router_is_authenticated_and_owner_scoped():
+def test_team_invitation_listing_exposes_metadata_only_and_preserves_invitation_flows(monkeypatch, caplog):
+    monkeypatch.setattr("app.routers.coach_hub.send_coach_invitation", lambda email, token: True)
+    monkeypatch.setattr("app.routers.staff.send_client_invitation", lambda email, token: True)
+
+    owner = make_coach()
+    unrelated = make_coach()
+    team = make_team(owner)
+
+    assistant_email = uniq("team-assistant")
+    assistant_invite = http.post(
+        f"/staff/teams/{team['id']}/coach-invitations",
+        headers=owner["headers"],
+        json={"email": assistant_email, "role": "assistant_coach"},
+    )
+    assert assistant_invite.status_code == 201, assistant_invite.text
+    assistant_token = invitation_token(assistant_invite.json()["invite_id"])
+    accepted_assistant = http.post(
+        "/coach/invitations/accept",
+        json={
+            "invitation_token": assistant_token,
+            "name": "Team Assistant",
+            "password": "AssistantPass456!",
+        },
+    )
+    assert accepted_assistant.status_code == 200, accepted_assistant.text
+    assistant_login = http.post(
+        "/coach/login",
+        json={"email": assistant_email, "password": "AssistantPass456!"},
+    )
+    assert assistant_login.status_code == 200
+    assistant = {"id": accepted_assistant.json()["coach_id"], "headers": bearer(assistant_login.json()["access_token"])}
+
+    client_email = uniq("team-invite-client")
+    client_invite = http.post(
+        "/staff/clients/invite",
+        headers=owner["headers"],
+        json={"email": client_email, "team_id": team["id"]},
+    )
+    assert client_invite.status_code == 200, client_invite.text
+    client_token = invitation_token(client_invite.json()["invite_id"])
+    client_invite_id = client_invite.json()["invite_id"]
+
+    listings = (
+        http.get(f"/team/{team['id']}/invites", headers=assistant["headers"]),
+        http.get(f"/invite/team/{team['id']}", headers=assistant["headers"]),
+        http.get(f"/invite/coach/{owner['id']}", headers=owner["headers"]),
+        http.get(f"/invite/{client_invite_id}", headers=owner["headers"]),
+        http.get("/staff/invitations", headers=owner["headers"]),
+    )
+    for response in listings:
+        assert response.status_code == 200, response.text
+        assert_no_credential_fields(response.json())
+        assert assistant_token not in response.text
+        assert client_token not in response.text
+
+    team_invites = listings[0].json()
+    assert {invite["email"] for invite in team_invites} >= {assistant_email, client_email}
+    assert all(
+        set(invite) == {"id", "email", "role", "team_id", "accepted", "expires_at", "created_at"}
+        for invite in team_invites
+    )
+    assistant_view = http.get(f"/team/{team['id']}/invites", headers=assistant["headers"])
+    assert assistant_view.json() == team_invites
+
+    assert http.get(f"/team/{team['id']}/invites").status_code == 401
+    assert http.get(f"/team/{team['id']}/invites", headers=unrelated["headers"]).status_code == 403
+    assert http.get(f"/invite/team/{team['id']}").status_code == 401
+    assert http.get(f"/invite/team/{team['id']}", headers=unrelated["headers"]).status_code == 403
+    assert http.get(f"/invite/coach/{owner['id']}", headers=unrelated["headers"]).status_code == 403
+    assert http.get(f"/invite/{client_invite_id}", headers=unrelated["headers"]).status_code == 403
+    ordinary_email = uniq("ordinary-invite-user")
+    assert http.post(
+        "/auth/register",
+        json={"name": "Ordinary User", "email": ordinary_email, "password": PASSWORD},
+    ).status_code == 200
+    ordinary_login = http.post("/auth/login", json={"email": ordinary_email, "password": PASSWORD})
+    assert ordinary_login.status_code == 200
+    ordinary_headers = bearer(ordinary_login.json()["access_token"])
+    assert http.get(f"/team/{team['id']}/invites", headers=ordinary_headers).status_code == 403
+    assert http.get(f"/invite/team/{team['id']}", headers=ordinary_headers).status_code == 403
+    assert http.get(f"/invite/coach/{owner['id']}", headers=ordinary_headers).status_code == 403
+    assert http.get(f"/invite/{client_invite_id}", headers=ordinary_headers).status_code == 403
+    assert http.get("/staff/invitations", headers=ordinary_headers).status_code == 403
+    assert http.post(
+        "/invite/create",
+        headers=ordinary_headers,
+        json={"team_id": team["id"], "email": uniq("unauthorized-invite")},
+    ).status_code == 403
+
+    accepted_client = http.post(
+        "/staff/invitations/accept",
+        json={"invitation_token": client_token, "name": "Invited Client", "password": PASSWORD},
+    )
+    assert accepted_client.status_code == 200, accepted_client.text
+    assert accepted_client.json()["client_id"]
+    assert http.post(
+        "/staff/invitations/accept",
+        json={"invitation_token": client_token, "name": "Invited Client", "password": PASSWORD},
+    ).status_code == 400
+
+    expired_invite = http.post(
+        "/staff/clients/invite",
+        headers=owner["headers"],
+        json={"email": uniq("expired-invite"), "team_id": team["id"]},
+    )
+    assert expired_invite.status_code == 200
+    expired_token = invitation_token(expired_invite.json()["invite_id"])
+    with SessionLocal() as db:
+        row = db.query(Invite).filter(Invite.id == expired_invite.json()["invite_id"]).one()
+        row.expires_at = datetime.utcnow() - timedelta(minutes=1)
+        db.commit()
+    expired_response = http.post(
+        "/staff/invitations/accept",
+        json={"invitation_token": expired_token, "name": "Expired Client", "password": PASSWORD},
+    )
+    assert expired_response.status_code == 400
+    assert expired_token not in expired_response.text
+    assert http.post("/staff/invitations/lookup", json={"token": expired_token}).status_code == 404
+
+    revoked_invite = http.post(
+        "/staff/clients/invite",
+        headers=owner["headers"],
+        json={"email": uniq("revoked-invite"), "team_id": team["id"]},
+    )
+    assert revoked_invite.status_code == 200
+    revoked_token = invitation_token(revoked_invite.json()["invite_id"])
+    revoked = http.delete(
+        f"/staff/invitations/{revoked_invite.json()['invite_id']}",
+        headers=owner["headers"],
+    )
+    assert revoked.status_code == 200, revoked.text
+    revoked_response = http.post(
+        "/staff/invitations/accept",
+        json={"invitation_token": revoked_token, "name": "Revoked Client", "password": PASSWORD},
+    )
+    assert revoked_response.status_code == 400
+    assert revoked_token not in revoked_response.text
+    assert http.post("/staff/invitations/lookup", json={"token": revoked_token}).status_code == 404
+    assert expired_token not in caplog.text
+    assert revoked_token not in caplog.text
+
+
+def test_legacy_invite_router_is_authenticated_owner_scoped_and_token_free(monkeypatch):
+    monkeypatch.setattr("app.routers.invite.send_coach_invitation", lambda email, token: True)
     owner, other = make_coach(), make_coach()
     team = make_team(owner)
     body = {"team_id": team["id"], "email": uniq("legacy"), "role": "assistant_coach"}
     assert http.post("/invite/create", headers=other["headers"], json=body).status_code == 403
     assert http.post("/invite/create", headers=owner["headers"], json={**body, "coach_id": other["id"]}).status_code == 403
-    assert http.post("/invite/create", headers=owner["headers"], json=body).status_code == 200
+    created = http.post("/invite/create", headers=owner["headers"], json=body)
+    assert created.status_code == 200
+    assert "token" not in created.json()
+    invite_id = created.json()["invite_id"]
+    original_token = invitation_token(invite_id)
+    resent = http.post("/invite/resend", headers=owner["headers"], json={"invite_id": invite_id})
+    assert resent.status_code == 200
+    assert "new_token" not in resent.json()
+    new_token = invitation_token(invite_id)
+    assert new_token != original_token
+    assert http.post("/staff/invitations/lookup", json={"token": original_token}).status_code == 404
+    assert http.post("/staff/invitations/lookup", json={"token": new_token}).status_code == 200
 
 
 # ---------- client management ----------

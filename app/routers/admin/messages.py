@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.auth.jwt_handler import decode_access_token
+from app.auth.dependencies import get_current_user
 from app.database.connection import get_db
 from app.models.messages import Message
 from app.models.user import User
@@ -43,14 +43,14 @@ def _get(db: Session, message_id: int) -> Message:
 @router.post("/messages")
 def send_message(
     data: UserMessageCreate,
-    token_data: dict = Depends(decode_access_token),
+    token_data: dict = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     try:
         user_id = int(token_data.get("sub"))
     except (TypeError, ValueError):
         raise HTTPException(status_code=401, detail="Invalid token")
-    user = db.query(User).filter(User.id == user_id).first()
+    user = db.query(User).filter(User.id == user_id, User.email == token_data.get("email")).first()
     if not user:
         raise HTTPException(status_code=401, detail="Invalid token")
     text = data.message.strip()

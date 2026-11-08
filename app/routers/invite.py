@@ -10,7 +10,9 @@ from app.auth.coach_dependencies import get_current_coach
 from app.database.connection import get_db
 from app.models.coach import Coach
 from app.models.invite import Invite
+from app.schemas.invite import InviteSummary
 from app.services.coach_access import get_accessible_team
+from app.services.email_delivery import send_client_invitation, send_coach_invitation
 
 router = APIRouter(prefix="/invite", tags=["Invite"])
 
@@ -88,30 +90,37 @@ def create_invite(data: InviteCreate, coach: Coach = Depends(get_current_coach),
     db.commit()
     db.refresh(invite)
 
+    delivered = False
+    try:
+        send_invitation = send_client_invitation if data.role == "client" else send_coach_invitation
+        delivered = send_invitation(invite.email, invite.token)
+    except Exception:
+        delivered = False
+
     return {
         "message": "Invite created successfully.",
         "invite_id": invite.id,
-        "token": invite.token,
+        "delivery_configured": delivered,
     }
 
 
 # ---------------------------------------------------------
 # List Invites (static routes first)
 # ---------------------------------------------------------
-@router.get("/coach/{coach_id}")
+@router.get("/coach/{coach_id}", response_model=list[InviteSummary])
 def list_invites_for_coach(coach_id: int, coach: Coach = Depends(get_current_coach), db: Session = Depends(get_db)):
     if coach_id != coach.id:
         raise HTTPException(status_code=403, detail="You can only list your own invites.")
     return [_summary(i) for i in db.query(Invite).filter(Invite.coach_id == coach.id).all()]
 
 
-@router.get("/team/{team_id}")
+@router.get("/team/{team_id}", response_model=list[InviteSummary])
 def list_invites_for_team(team_id: int, coach: Coach = Depends(get_current_coach), db: Session = Depends(get_db)):
     team = get_accessible_team(db, coach, team_id)
     return [_summary(i) for i in db.query(Invite).filter(Invite.team_id == team.id).all()]
 
 
-@router.get("/{invite_id}")
+@router.get("/{invite_id}", response_model=InviteSummary)
 def get_invite(invite_id: int, coach: Coach = Depends(get_current_coach), db: Session = Depends(get_db)):
     return _summary(_own_invite(db, coach, invite_id))
 
@@ -128,13 +137,19 @@ def resend_invite(data: InviteResend, coach: Coach = Depends(get_current_coach),
     invite.token = secrets.token_urlsafe(32)
     invite.expires_at = datetime.utcnow() + timedelta(days=7)
 
+    try:
+        send_invitation = send_client_invitation if invite.role == "client" else send_coach_invitation
+        delivered = send_invitation(invite.email, invite.token)
+    except Exception:
+        delivered = False
+    if not delivered:
+        db.rollback()
+        raise HTTPException(status_code=503, detail="Invitation email could not be delivered")
+
     db.commit()
     db.refresh(invite)
 
-    return {
-        "message": "Invite resent successfully.",
-        "new_token": invite.token
-    }
+    return {"message": "Invite resent successfully.", "delivery_configured": True}
 
 
 # ---------------------------------------------------------

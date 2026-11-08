@@ -123,15 +123,34 @@ def test_admin_login_rules(admin, regular):
     assert me["email"] == "root-admin@example.com" and me["is_admin"] is True
 
 
+def test_admin_login_accepts_case_insensitive_email_for_browser_input():
+    make_user("browser-admin@example.com", admin=True)
+    response = client.post(
+        "/admin/login",
+        json={"email": "Browser-Admin@Example.com", "password": PASSWORD},
+    )
+    assert response.status_code == 200, response.text
+    me = client.get("/admin/me", headers=_bearer(response.json()["access_token"]))
+    assert me.status_code == 200
+    assert me.json()["email"] == "browser-admin@example.com"
+
+
 def test_demoted_admin_token_stops_working():
-    make_user("temp-admin@example.com", admin=True)
+    admin_id = make_user("temp-admin@example.com", admin=True)
+    target_id = make_user("demotion-target@example.com")
     h = admin_headers("temp-admin@example.com")
     assert client.get("/admin/dashboard", headers=h).status_code == 200
+    assert client.get("/users/", headers=h).status_code == 200
     with SessionLocal() as db:
         db.query(User).filter(User.email == "temp-admin@example.com").update({"is_admin": False})
         db.commit()
     assert client.get("/admin/dashboard", headers=h).status_code == 403
     assert client.get("/admin/me", headers=h).status_code == 403
+    assert client.get("/users/", headers=h).status_code == 403
+    assert client.get(f"/users/{target_id}", headers=h).status_code == 403
+    assert client.put(f"/users/{target_id}", headers=h, json={"name": "Unauthorized"}).status_code == 403
+    assert client.delete(f"/users/{target_id}", headers=h).status_code == 403
+    assert client.get(f"/users/{admin_id}", headers=h).status_code == 200
 
 
 # ---------- login recording & metrics from real rows ----------

@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.auth.jwt_handler import decode_access_token
+from app.auth.jwt_handler import get_active_access_token
 from app.database.connection import get_db
 from app.models.announcements import Announcement
 from app.routers.admin.auth import record_audit, verify_admin
@@ -60,7 +60,7 @@ def _get(db: Session, announcement_id: int) -> Announcement:
 @router.get("/announcements")
 def list_active_announcements(
     db: Session = Depends(get_db),
-    token_data: dict = Depends(decode_access_token),
+    token_data: dict = Depends(get_active_access_token),
 ):
     rows = (
         db.query(Announcement)

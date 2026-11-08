@@ -9,6 +9,7 @@ from email.message import EmailMessage
 import os
 import smtplib
 import ssl
+from urllib.parse import urlencode
 
 
 def _send_email(to_address: str, subject: str, text: str) -> bool:
@@ -48,7 +49,7 @@ def _send_email(to_address: str, subject: str, text: str) -> bool:
 
 def send_user_password_reset(email: str, token: str) -> bool:
     base = os.getenv("FRONTEND_URL", "https://delphiafit.com").rstrip("/")
-    link = f"{base}/reset-password?email={email}&token={token}"
+    link = f"{base}/reset-password#{urlencode({'email': email, 'token': token})}"
     return _send_email(
         email,
         "Reset your DelphiaFit password",
@@ -58,7 +59,7 @@ def send_user_password_reset(email: str, token: str) -> bool:
 
 def send_coach_password_reset(email: str, token: str) -> bool:
     base = os.getenv("FRONTEND_URL", "https://delphiafit.com").rstrip("/")
-    link = f"{base}/coach/password-reset?email={email}&token={token}"
+    link = f"{base}/coach/password-reset#{urlencode({'email': email, 'token': token})}"
     return _send_email(
         email,
         "Reset your DelphiaFit Coach password",
@@ -68,16 +69,15 @@ def send_coach_password_reset(email: str, token: str) -> bool:
 
 def send_client_invitation(email: str, token: str) -> bool:
     base = os.getenv("FRONTEND_URL", "https://delphiafit.com").rstrip("/")
-    link = f"{base}/invite?token={token}"
+    link = f"{base}/invite#token={token}"
     return _send_email(email, "Your DelphiaFit invitation", f"You have been invited to DelphiaFit:\n\n{link}")
 
 
 def send_coach_invitation(email: str, token: str) -> bool:
     base = os.getenv("FRONTEND_URL", "https://delphiafit.com").rstrip("/")
-    link = f"{base}/invite?token={token}"
+    link = f"{base}/invite#token={token}"
     return _send_email(
         email,
         "You have been invited to coach on DelphiaFit",
         f"Use this link to set up your DelphiaFit coach access:\n\n{link}",
     )
-

@@ -1,5 +1,14 @@
-from fastapi import FastAPI
+from urllib.parse import parse_qsl
+from urllib.parse import urlsplit
+import ipaddress
+import logging
+import os
+import re
+import uuid
+
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 # Register all SQLAlchemy models before routers configure relationships.
 from app import models as _models
@@ -87,13 +96,121 @@ from app.routers import (
 )
 
 app = FastAPI(title="DelphiaFit Backend V2", redirect_slashes=False)
+logger = logging.getLogger(__name__)
 
-origins = [
-    "http://localhost:5173",
+_SENSITIVE_QUERY_KEYS = {
+    "access_token",
+    "api_key",
+    "auth_token",
+    "authorization",
+    "client_secret",
+    "code",
+    "invite_token",
+    "invitation_token",
+    "password",
+    "password_reset_token",
+    "refresh_token",
+    "reset_token",
+    "secret",
+    "session_token",
+    "token",
+}
+
+
+@app.middleware("http")
+async def redact_sensitive_query_strings(request, call_next):
+    query_string = request.scope.get("query_string", b"")
+    if query_string:
+        query = query_string.decode("latin-1")
+        if any(key.casefold() in _SENSITIVE_QUERY_KEYS for key, _ in parse_qsl(query, keep_blank_values=True)):
+            request.scope["query_string"] = b""
+    return await call_next(request)
+
+
+@app.middleware("http")
+async def sanitize_unhandled_errors(request: Request, call_next):
+    request_id = uuid.uuid4().hex
+    request.state.request_id = request_id
+    try:
+        return await call_next(request)
+    except Exception as exc:
+        logger.error(
+            "Unhandled request failure request_id=%s exception_type=%s",
+            request_id,
+            type(exc).__name__,
+        )
+        return JSONResponse(
+            status_code=500,
+            content={"detail": "Internal server error"},
+        )
+
+
+PRODUCTION_FRONTEND_ORIGINS = (
     "https://delphiafit-web.vercel.app",
     "https://www.delphiafit.com",
     "https://delphiafit.com",
-]
+)
+DEVELOPMENT_FRONTEND_ORIGINS = ("http://localhost:5173",)
+_DNS_LABEL = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$")
+
+
+def normalize_staging_frontend_origin(value: str | None) -> str | None:
+    if value is None or not value.strip():
+        return None
+
+    candidate = value.strip()
+    try:
+        parsed = urlsplit(candidate)
+        hostname = parsed.hostname
+        port = parsed.port
+    except (UnicodeError, ValueError):
+        hostname = None
+        port = None
+
+    if (
+        not hostname
+        or parsed.scheme.casefold() != "https"
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.path not in ("", "/")
+        or parsed.query
+        or parsed.fragment
+        or "?" in candidate
+        or "#" in candidate
+        or "\\" in candidate
+        or any(character.isspace() for character in candidate)
+        or "*" in candidate
+    ):
+        raise RuntimeError(
+            "STAGING_FRONTEND_ORIGIN must be a single HTTPS origin without credentials, path, query, or fragment"
+        )
+
+    normalized_host = hostname.rstrip(".").encode("idna").decode("ascii").casefold()
+    try:
+        address = ipaddress.ip_address(normalized_host)
+    except ValueError:
+        labels = normalized_host.split(".")
+        if len(normalized_host) > 253 or not all(_DNS_LABEL.fullmatch(label) for label in labels):
+            raise RuntimeError("STAGING_FRONTEND_ORIGIN must contain a valid HTTPS hostname") from None
+        host_for_origin = normalized_host
+    else:
+        host_for_origin = f"[{address.compressed}]" if address.version == 6 else address.compressed
+
+    port_suffix = f":{port}" if port is not None and port != 443 else ""
+    return f"https://{host_for_origin}{port_suffix}"
+
+
+def get_cors_origins(staging_origin: str | None = None) -> list[str]:
+    if staging_origin is None:
+        staging_origin = os.getenv("STAGING_FRONTEND_ORIGIN")
+    normalized_staging_origin = normalize_staging_frontend_origin(staging_origin)
+    origins = [*DEVELOPMENT_FRONTEND_ORIGINS, *PRODUCTION_FRONTEND_ORIGINS]
+    if normalized_staging_origin and normalized_staging_origin not in origins:
+        origins.append(normalized_staging_origin)
+    return origins
+
+
+origins = get_cors_origins()
 
 app.add_middleware(
     CORSMiddleware,

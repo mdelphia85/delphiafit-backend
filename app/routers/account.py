@@ -2,12 +2,14 @@
 import os
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.auth.hashing import hash_password, verify_password
+from app.auth.dependencies import get_current_user
+from app.auth.errors import authentication_database_error
 from app.crud.user import delete_user as delete_user_record
 from app.database.connection import Base, get_db
 from app.models.user import User
@@ -55,18 +57,42 @@ def _delivery_configured() -> bool:
 @router.post("/change-password")
 def change_password(
     payload: ChangePassword,
+    request: Request,
     db: Session = Depends(get_db),
-    user_id: int = Depends(get_current_user_id),
+    token_data: dict = Depends(get_current_user),
 ):
-    user = _current_user(db, user_id)
+    try:
+        user_id = int(token_data.get("sub"))
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user token")
+
+    try:
+        user = (
+            db.query(User)
+            .filter(User.id == user_id)
+            .with_for_update()
+            .populate_existing()
+            .first()
+        )
+    except Exception as exc:
+        raise authentication_database_error(db, request, "password change account lookup", exc) from None
+    if not user or token_data.get("email") != user.email:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user token")
+    if token_data.get("token_version", 0) != user.token_version:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token")
     if not verify_password(payload.current_password, user.hashed_password):
         raise HTTPException(status_code=400, detail="Current password is incorrect")
     if payload.new_password == payload.current_password:
         raise HTTPException(status_code=400, detail="New password must differ from the current password")
-    user.hashed_password = hash_password(payload.new_password)
-    user.password_reset_token_hash = None
-    user.password_reset_expires_at = None
-    db.commit()
+    try:
+        user.hashed_password = hash_password(payload.new_password)
+        user.token_version = User.token_version + 1
+        user.password_reset_token_hash = None
+        user.password_reset_expires_at = None
+        db.commit()
+    except Exception as exc:
+        raise authentication_database_error(db, request, "password change", exc) from None
     return {"detail": "Password updated"}
 
 

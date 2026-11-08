@@ -55,17 +55,35 @@ class CoachCRUD:
     # Update Coach
     # ---------------------------------------------------------
     def update_coach(self, db: Session, coach_id: int, updates: dict):
-        coach = self.get_coach(db, coach_id)
+        coach = (
+            db.query(Coach)
+            .filter(Coach.id == coach_id)
+            .with_for_update()
+            .populate_existing()
+            .first()
+        )
         if not coach:
             raise ValueError("Coach not found.")
 
-        for key, value in updates.items():
-            if hasattr(coach, key):
-                setattr(coach, key, value)
+        try:
+            revoke_sessions = False
+            for key, value in updates.items():
+                if key == "token_version":
+                    continue
+                if hasattr(coach, key):
+                    if key == "hashed_password" and value != coach.hashed_password:
+                        revoke_sessions = True
+                    elif key == "is_active" and value != coach.is_active:
+                        revoke_sessions = True
+                    setattr(coach, key, value)
 
-        coach.updated_at = datetime.utcnow()
-
-        db.commit()
+            if revoke_sessions:
+                coach.token_version = Coach.token_version + 1
+            coach.updated_at = datetime.utcnow()
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
         db.refresh(coach)
         return coach
 
@@ -73,24 +91,38 @@ class CoachCRUD:
     # Deactivate Coach
     # ---------------------------------------------------------
     def deactivate_coach(self, db: Session, coach_id: int):
-        coach = self.get_coach(db, coach_id)
+        coach = (
+            db.query(Coach)
+            .filter(Coach.id == coach_id)
+            .with_for_update()
+            .populate_existing()
+            .first()
+        )
         if not coach:
             raise ValueError("Coach not found.")
 
-        coach.is_active = False
-        coach.updated_at = datetime.utcnow()
-
-        db.commit()
+        try:
+            if coach.is_active:
+                coach.is_active = False
+                coach.token_version = Coach.token_version + 1
+            coach.updated_at = datetime.utcnow()
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
         db.refresh(coach)
         return coach
 
     # ---------------------------------------------------------
-    # Accept Invite → Create Client or Assistant Coach
+    # Legacy client invitation acceptance
     # ---------------------------------------------------------
     def accept_invite(self, db: Session, token: str, name: str):
-        invite = db.query(Invite).filter(Invite.token == token).first()
+        invite = db.query(Invite).filter(Invite.token == token).with_for_update().first()
         if not invite:
             raise ValueError("Invalid invite token.")
+
+        if invite.role != "client":
+            raise ValueError("Coach invitations must be accepted through the authenticated coach invitation flow.")
 
         if invite.accepted:
             raise ValueError("Invite already accepted.")
@@ -113,19 +145,6 @@ class CoachCRUD:
                 updated_at=datetime.utcnow()
             )
             db.add(client)
-
-        else:
-            # assistant coach, recruiter, analyst, etc.
-            new_coach = Coach(
-                email=invite.email,
-                name=name,
-                organization=None,
-                role=invite.role,
-                is_active=True,
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow()
-            )
-            db.add(new_coach)
 
         db.commit()
         return {"message": "Invite accepted successfully."}

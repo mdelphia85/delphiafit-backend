@@ -32,13 +32,24 @@ class ClientInviteAcceptRequest(BaseModel):
     password: str
 
 
-@router.get("/invitations/lookup")
-def lookup_invitation(token: str, db: Session = Depends(get_db)):
+class InvitationLookupRequest(BaseModel):
+    token: str
+
+
+@router.post("/invitations/lookup")
+def lookup_invitation(data: InvitationLookupRequest, db: Session = Depends(get_db)):
     """Public: lets the invite page know which form (coach or client) to show."""
-    invite = db.query(Invite).filter(Invite.token == token).first()
+    invite = db.query(Invite).filter(Invite.token == data.token).first()
     if not invite or invite.accepted or (invite.expires_at and invite.expires_at < datetime.utcnow()):
         raise HTTPException(status_code=404, detail="Invalid, expired or already-used invitation")
-    return {"email": invite.email, "role": "client" if invite.role == "client" else "coach"}
+    existing_coach = False
+    if invite.role != "client":
+        existing_coach = db.query(Coach.id).filter(Coach.email.ilike(invite.email)).first() is not None
+    return {
+        "email": invite.email,
+        "role": "client" if invite.role == "client" else "coach",
+        "existing_coach": existing_coach,
+    }
 
 
 @router.post("/invitations/accept")
@@ -163,7 +174,6 @@ def invite_staff_client(
         "message": "Invitation created",
         "invite_id": invite.id,
         "delivery_configured": delivered,
-        "invite_token": invite.token,
     }
 
 

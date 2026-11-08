@@ -80,11 +80,81 @@ class AIEngine:
                 "would you like help with: meals, protein, or fueling workouts?"
             )
         elif re.search(r"\b(workout|workouts|work out|exercise|exercises|train|training|strength|cardio|plan)\b", text):
-            advice = (
-                "For a general workout, warm up, choose movements suited to your experience and equipment, "
-                "and finish with a cool-down. Begin at a manageable effort and progress gradually. "
-                "What is your goal, experience level, available equipment, and time for the session?"
+            experience = str(user_data.get("experience", "")).lower()
+            beginner_request = bool(re.search(r"\b(beginner|beginner's|new to exercise)\b", text))
+            bodyweight_request = bool(re.search(r"\b(bodyweight|body weight|no equipment|at home)\b", text))
+            beginner_bodyweight = (
+                beginner_request
+                or experience in {"beginner", "novice"}
+                or (bodyweight_request and experience not in {"intermediate", "advanced"})
             )
+            if beginner_bodyweight:
+                time_match = re.search(r"\b(\d{1,2})\s*-?\s*minutes?\b", text)
+                requested_minutes = next(
+                    (
+                        user_data.get(key)
+                        for key in ("available_minutes", "time_minutes", "duration_minutes", "session_minutes")
+                        if user_data.get(key) is not None
+                    ),
+                    None,
+                )
+                if time_match:
+                    requested_minutes = int(time_match.group(1))
+                duration_is_explicit = requested_minutes is not None
+                try:
+                    duration = int(requested_minutes) if requested_minutes is not None else 20
+                except (TypeError, ValueError):
+                    duration = 20
+                duration = max(5, min(duration, 60))
+                if duration == 20 and duration_is_explicit:
+                    advice = (
+                        "Beginner bodyweight session (20 minutes total):\n"
+                        "Warm-up (3 minutes): easy marching and comfortable arm circles.\n"
+                        "Main circuit (14 minutes): complete 3 rounds. Each movement has a 45-second station; "
+                        "do the listed reps at a controlled pace and rest for the remainder. Take 15 seconds "
+                        "after every station, including the last station of each round, and 60 seconds after "
+                        "rounds 1 and 2.\n"
+                        "- Chair squats: 8-10 reps.\n"
+                        "- Incline push-ups against a sturdy counter or wall: 6-10 reps.\n"
+                        "- Glute bridges: 10-12 reps.\n"
+                        "- Bird-dogs: 5 reps per side.\n"
+                        "Cool-down (3 minutes): easy walking and gentle, comfortable movement. "
+                        "Timing adds up to 3 + 14 + 3 = 20 minutes. Keep the effort comfortable and stop "
+                        "for pain or dizziness."
+                    )
+                elif duration <= 12:
+                    advice = (
+                        f"Beginner bodyweight session (about {duration} minutes):\n"
+                        "Warm-up (2 minutes): march in place, then do comfortable arm circles.\n"
+                        "Complete 2 rounds. Rest 15-30 seconds between movements and 30-45 seconds between rounds:\n"
+                        "- Chair squats: 8 controlled reps.\n"
+                        "- Incline push-ups against a sturdy counter or wall: 6-8 reps.\n"
+                        "- Glute bridges: 10 reps.\n"
+                        "- Bird-dogs: 5 reps per side.\n"
+                        "Use the remaining time for easy walking and a gentle cool-down. Keep the effort comfortable "
+                        "and stop for pain or dizziness."
+                    )
+                else:
+                    rounds = max(2, min(4, duration // 7))
+                    advice = (
+                        f"Beginner bodyweight session (about {duration} minutes):\n"
+                        "Warm-up: 3-5 minutes of easy marching and comfortable arm circles.\n"
+                        f"Complete {rounds} rounds, resting 60-90 seconds between rounds:\n"
+                        "- Chair squats: 8-10 controlled reps.\n"
+                        "- Incline push-ups against a sturdy counter or wall: 6-10 reps.\n"
+                        "- Glute bridges: 10-12 reps.\n"
+                        "- Bird-dogs: 6 reps per side.\n"
+                        "Cool down with a few minutes of easy walking. Keep the effort comfortable, stop for pain "
+                        "or dizziness, and add repetitions gradually only when the session feels manageable."
+                    )
+            else:
+                advice = (
+                    "For a general workout, warm up for 3-5 minutes, then complete 2-3 sets of a squat or leg "
+                    "movement, a push, and a pull that suit your equipment; aim for 8-12 comfortable reps per "
+                    "set and rest 60-90 seconds. Finish with a few minutes of easy movement. Start at a "
+                    "manageable effort and progress gradually. What is your goal, experience level, available "
+                    "equipment, and time for the session?"
+                )
         else:
             advice = (
                 "I can offer limited rule-based guidance about workouts, recovery, nutrition, and reported pain; "
