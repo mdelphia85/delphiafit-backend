@@ -372,3 +372,8 @@ jobs:
           JWT_SECRET: test-only-ci-key-not-used-in-production
           DATABASE_URL: 'sqlite://'
         run: python -m pytest -q tests/test_trainer_clients.py
+      - name: Verify AI Coach goal, safety and history regression tests
+        env:
+          JWT_SECRET: test-only-ci-key-not-used-in-production
+          DATABASE_URL: 'sqlite://'
+        run: python -m pytest -q tests/test_ai_coach_guidance.py tests/test_ai_adaptive.py
