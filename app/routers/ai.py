@@ -174,8 +174,7 @@ def _adapt(db: Session, user_id: int, data: dict) -> tuple[dict, dict]:
         if profile.get("difficulty") in DIFFICULTY_TO_EXPERIENCE:
             adapted["experience"] = DIFFICULTY_TO_EXPERIENCE[profile["difficulty"]]
             used["difficulty"] = profile["difficulty"]
-        elif logs:
-            adapted["experience"] = "beginner" if len(logs) < 10 else "intermediate" if len(logs) < 50 else "advanced"
+        # The number of workouts recorded on this platform does not establish\n        # actual training experience. Leave it unknown unless explicitly supplied\n        # or already saved as an adaptive difficulty preference.
     categories = {
         key: value for key, value in (profile.get("preferredCategories") or {}).items()
         if isinstance(key, str) and key.strip() and key.strip().lower() not in {"undefined", "null"}
