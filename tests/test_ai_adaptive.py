@@ -446,3 +446,15 @@ def test_empty_question_is_rejected_and_limited_mode_is_honestly_labeled(monkeyp
     assert response.status_code == 200
     assert response.json()["mode"] == "limited"
     assert "muscle" in response.json()["coach_response"].lower()
+
+
+def test_ai_coach_capabilities_reports_provider_readiness_without_secrets(monkeypatch):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    response = client.get("/ai/coach/capabilities")
+    assert response.status_code == 200
+    assert response.json() == {"mode": "limited", "general_questions_available": False}
+    monkeypatch.setenv("OPENAI_API_KEY", "not-a-real-test-key")
+    response = client.get("/ai/coach/capabilities")
+    assert response.status_code == 200
+    assert response.json() == {"mode": "conversational", "general_questions_available": True}
+    assert "not-a-real-test-key" not in response.text
