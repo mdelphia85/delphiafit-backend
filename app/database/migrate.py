@@ -141,6 +141,27 @@ def migrate_coach_hub() -> None:
         model.__table__.create(bind=engine, checkfirst=True)
 
 
+def migrate_admin_message_resolution() -> None:
+    """Preserve existing inbox state while separating read and resolution flags.
+
+    Older deployments used is_read as the resolved indicator. Only when adding
+    this new field do we carry forward those visible legacy resolution states.
+    Repeated migrations must not reset subsequent admin changes.
+    """
+    with engine.begin() as conn:
+        inspector = inspect(conn)
+        if "messages" not in inspector.get_table_names():
+            return
+        columns = {column["name"] for column in inspector.get_columns("messages")}
+        if "resolved" not in columns:
+            conn.execute(text(
+                "ALTER TABLE messages ADD COLUMN resolved BOOLEAN NOT NULL DEFAULT FALSE"
+            ))
+            conn.execute(text(
+                "UPDATE messages SET resolved = COALESCE(is_read, FALSE)"
+            ))
+
+
 def migrate_admin_system() -> None:
     """Additive columns for user suspension and announcement publishing."""
     with engine.begin() as conn:
@@ -299,6 +320,7 @@ def run_migrations() -> None:
     migrate_tactical_drills()
     migrate_user_profiles()
     migrate_admin_system()
+    migrate_admin_message_resolution()
     migrate_tactical_owners()
     migrate_prep_pipeline_owners()
     migrate_legacy_tactical_owners()
