@@ -12,6 +12,7 @@ from app.models.daily_log import DailyLog
 from app.models.login_log import LoginLog
 from app.models.messages import Message
 from app.models.user import User
+from app.models.trainer import TrainerProfile
 from app.models.workout_log import WorkoutLog
 from app.routers.admin.auth import record_audit, verify_admin
 from app.schemas.user import AdminUserResponse
@@ -25,6 +26,10 @@ class SuspendBody(BaseModel):
 
 class RoleBody(BaseModel):
     is_admin: bool
+
+
+class TrainerRoleBody(BaseModel):
+    enabled: bool
 
 
 def _get_user(db: Session, user_id: int) -> User:
@@ -212,6 +217,28 @@ def toggle_admin(user_id: int, db: Session = Depends(get_db), admin=Depends(veri
 def set_role(user_id: int, body: RoleBody, db: Session = Depends(get_db), admin=Depends(verify_admin)):
     user = _get_user(db, user_id)
     return _set_admin(db, admin, user, body.is_admin)
+
+
+@router.put("/{user_id}/trainer")
+def set_trainer_access(user_id: int, body: TrainerRoleBody, db: Session = Depends(get_db), admin=Depends(verify_admin)):
+    """An owner/admin explicitly provisions personal-trainer access; no self-enrollment."""
+    user = _get_user(db, user_id)
+    profile = db.query(TrainerProfile).filter(TrainerProfile.user_id == user.id).first()
+    if profile is None:
+        if body.enabled:
+            db.add(TrainerProfile(user_id=user.id, is_active=True))
+    else:
+        profile.is_active = body.enabled
+    db.commit()
+    record_audit(
+        db,
+        admin,
+        "trainer.enable" if body.enabled else "trainer.disable",
+        "user",
+        user.id,
+        user.email,
+    )
+    return {"user_id": user.id, "is_trainer": body.enabled}
 
 
 @router.patch("/{user_id}/suspend")
