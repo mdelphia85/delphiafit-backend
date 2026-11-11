@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import func, or_
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from datetime import datetime
 
@@ -74,7 +74,7 @@ def get_all_users(
     db: Session = Depends(get_db),
     admin=Depends(verify_admin),
 ):
-    query = db.query(User)
+    query = db.query(User).options(selectinload(User.trainer_profile))
     if q and q.strip():
         like = f"%{q.strip().lower()}%"
         query = query.filter(or_(func.lower(User.email).like(like), func.lower(User.name).like(like)))
