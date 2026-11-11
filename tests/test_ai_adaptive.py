@@ -357,3 +357,92 @@ def test_one_logged_workout_does_not_infer_beginner_training_experience():
 
     history = client.get("/ai/records", headers=user).json()
     assert any(row["result"]["coach_response"] == data["coach_response"] for row in history)
+
+def test_conversational_coach_answers_unrelated_questions_and_uses_same_user_history(monkeypatch):
+    from types import SimpleNamespace
+    from app.services import conversational_coach
+
+    monkeypatch.setenv("OPENAI_API_KEY", "mock-key-not-real")
+    monkeypatch.setenv("DELPHIAFIT_AI_MODEL", "gpt-6-luna")
+    captured = []
+
+    class FakeClient:
+        def __init__(self, **kwargs):
+            assert kwargs["api_key"] == "mock-key-not-real"
+            self.responses = self
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_):
+            return False
+
+        def create(self, **kwargs):
+            captured.append(kwargs)
+            return SimpleNamespace(output_text=f"Helpful response to: {kwargs['input'][-1]['content']}")
+
+    monkeypatch.setattr(conversational_coach, "OpenAI", FakeClient)
+    first = make_user("ai-chat-" + uuid.uuid4().hex[:10] + "@example.com")
+    second = make_user("ai-other-" + uuid.uuid4().hex[:10] + "@example.com")
+
+    for question in ("How do I build more muscle?", "What is the capital of France?", "And what continent is that in?"):
+        res = client.post("/ai/coach", headers=first, json={"user_data": {"fatigue": 3}, "message": question})
+        assert res.status_code == 200, res.text
+        assert res.json()["mode"] == "conversational"
+        assert question in res.json()["coach_response"]
+
+    assert captured[-1]["store"] is False
+    assert captured[-1]["model"] == "gpt-6-luna"
+    assert len(captured[0]["input"]) == 2
+    assert len(captured[1]["input"]) == 4
+    assert len(captured[2]["input"]) == 6
+    assert "What is the capital of France?" in str(captured[2]["input"])
+    assert "OPENAI_API_KEY" not in str(captured)
+
+    answer = client.post("/ai/coach", headers=second, json={"user_data": {}, "message": "What is a CPU?"})
+    assert answer.status_code == 200
+    assert len(captured[-1]["input"]) == 2
+    assert "capital of France" not in str(captured[-1]["input"])
+    assert len(client.get("/ai/records", headers=first).json()) == 3
+    assert len(client.get("/ai/records", headers=second).json()) == 1
+
+
+def test_model_error_is_not_saved_or_exposed(monkeypatch):
+    from app.services import conversational_coach
+
+    monkeypatch.setenv("OPENAI_API_KEY", "mock-key-not-real")
+
+    class BrokenClient:
+        def __init__(self, **kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_):
+            return False
+
+        @property
+        def responses(self):
+            return self
+
+        def create(self, **kwargs):
+            raise RuntimeError("PRIVATE_PROVIDERTOKEN must never appear")
+
+    monkeypatch.setattr(conversational_coach, "OpenAI", BrokenClient)
+    account = make_user("ai-provider-error-" + uuid.uuid4().hex[:8] + "@example.com")
+    response = client.post("/ai/coach", headers=account, json={"user_data": {}, "message": "Hello?"})
+    assert response.status_code == 500
+    assert "PRIVATE_PROVIDERTOKEN" not in response.text
+    assert client.get("/ai/records", headers=account).json() == []
+
+
+def test_empty_question_is_rejected_and_limited_mode_is_honestly_labeled(monkeypatch):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    account = make_user("ai-limited-" + uuid.uuid4().hex[:10] + "@example.com")
+    empty = client.post("/ai/coach", headers=account, json={"user_data": {}, "message": " "})
+    assert empty.status_code == 422
+    response = client.post("/ai/coach", headers=account, json={"user_data": {}, "message": "Can I build muscle?"})
+    assert response.status_code == 200
+    assert response.json()["mode"] == "limited"
+    assert "muscle" in response.json()["coach_response"].lower()
