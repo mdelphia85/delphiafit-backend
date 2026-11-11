@@ -88,6 +88,14 @@ def delete_user(db: Session, user_id: int) -> bool:
     if not user:
         return False
     _delete_unconstrained_user_rows(db, user_id)
+    # Personal-trainer permissions/consent links reference either side of a
+    # relationship; remove both before deleting the user (including SQLite).
+    from app.models.trainer import TrainerClientLink, TrainerProfile
+    from sqlalchemy import or_
+    db.query(TrainerClientLink).filter(
+        or_(TrainerClientLink.trainer_user_id == user_id, TrainerClientLink.client_user_id == user_id)
+    ).delete(synchronize_session=False)
+    db.query(TrainerProfile).filter(TrainerProfile.user_id == user_id).delete(synchronize_session=False)
     db.delete(user)
     db.commit()
     return True
