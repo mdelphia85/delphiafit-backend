@@ -6,6 +6,7 @@ regular user authentication plus an administrator-provisioned trainer profile.
 from datetime import datetime
 
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, UniqueConstraint, text
+from sqlalchemy.orm import relationship
 
 from app.database.connection import Base
 
@@ -17,6 +18,8 @@ class TrainerProfile(Base):
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True, index=True)
     is_active = Column(Boolean, nullable=False, default=True, server_default=text("true"))
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    user = relationship("User", back_populates="trainer_profile")
 
 
 class TrainerClientLink(Base):
