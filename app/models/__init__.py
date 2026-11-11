@@ -71,6 +71,7 @@ from . import tenant as _tenant
 from . import tournament as _tournament
 from . import unit as _unit
 from . import user as _user
+from . import trainer as _trainer
 from . import weight as _weight
 from . import wildland as _wildland
 from . import workout_log as _workout_log
