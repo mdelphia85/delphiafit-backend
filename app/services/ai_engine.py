@@ -66,7 +66,14 @@ class AIEngine:
                 )
             return {"coach_response": safety + advice}
 
-        prefix = f"Estimated training difficulty: {difficulty}. This is not an assessment of injury or medical readiness.\n\n"
+        muscle_goal = bool(re.search(
+            r"\b(muscle(?:s)?|muscular|hypertrophy|bulking|bulk|build(?:ing)? (?:more )?(?:muscle|size)|"
+            r"gain(?:ing)? (?:more )?(?:muscle|size)|put on size)\b",
+            text,
+        ))
+        explicit_bodyweight = bool(re.search(r"\b(bodyweight|body weight|no equipment|at home)\b", text))
+        explicit_beginner = bool(re.search(r"\b(beginner|beginner's|new to exercise)\b", text))
+        prefix = f"Estimated training difficulty: {difficulty}. This is not an assessment of injury or medical readiness.\\n\\n"
         if re.search(r"\b(sleep|recovery|recover|rest|fatigue|tired)\b", text):
             advice = (
                 "For recovery, consider an easier session or a rest day when you feel unusually fatigued. "
@@ -74,11 +81,45 @@ class AIEngine:
                 "What does your recent training and sleep look like?"
             )
         elif re.search(r"\b(nutrition|protein|food|eat|eating|calories|diet)\b", text):
-            advice = (
-                "For general nutrition, build meals around a protein source, fruits or vegetables, and foods "
-                "that provide energy for training. Drink enough fluids. What is your training goal and what "
-                "would you like help with: meals, protein, or fueling workouts?"
-            )
+            if muscle_goal:
+                advice = (
+                    "To support muscle growth, pair progressive resistance training with enough food and "
+                    "consistent protein-containing meals. Include carbohydrate sources for training energy, "
+                    "fruits or vegetables, and regular hydration. Individual protein/calorie needs vary; "
+                    "what is your experience level, body-weight goal, and how often are you training?"
+                )
+            else:
+                advice = (
+                    "For general nutrition, build meals around a protein source, fruits or vegetables, and foods "
+                    "that provide energy for training. Drink enough fluids. What is your training goal and what "
+                    "would you like help with: meals, protein, or fueling workouts?"
+                )
+        elif muscle_goal:
+            if explicit_bodyweight:
+                advice = (
+                    "To build muscle with bodyweight training, use challenging but controlled progressions "
+                    "and gradually increase repetitions, sets, or exercise difficulty. A full-body session "
+                    "could include 2-3 sets each of squats or split squats, incline-to-floor push-ups, "
+                    "rows using a safe and stable setup, and glute bridges or hip hinges, generally 6-15 reps "
+                    "per set at a manageable effort. Train 2-3 nonconsecutive days per week, allow recovery, "
+                    "and stop for pain or dizziness. If you are new, start with easier variations. "
+                    "What equipment or sturdy anchor points do you have, what is your experience, "
+                    "and how many days can you train?"
+                )
+            else:
+                advice = (
+                    "For building muscle (hypertrophy), prioritize progressive resistance training rather "
+                    "than only a short easy circuit. A practical full-body starting framework is 2-3 "
+                    "sessions per week with a squat or lunge, hip hinge, push, pull, and optional arm/core "
+                    "exercises. Start with about 2-3 sets of 6-12 controlled repetitions for each "
+                    "major movement, resting roughly 1-3 minutes between challenging sets. Choose loads "
+                    "you can control; increase repetitions or resistance gradually as movements become "
+                    "manageable. Leave recovery time between hard sessions, sleep consistently, and "
+                    "eat adequately to support the goal. What is your actual training experience, "
+                    "do you have gym equipment or train at home, and how many days each week are available?"
+                )
+            if explicit_beginner and not explicit_bodyweight:
+                advice += " If you are a beginner, begin with lighter loads and learn exercise technique first."
         elif re.search(r"\b(workout|workouts|work out|exercise|exercises|train|training|strength|cardio|plan)\b", text):
             experience = str(user_data.get("experience", "")).lower()
             beginner_request = bool(re.search(r"\b(beginner|beginner's|new to exercise)\b", text))
