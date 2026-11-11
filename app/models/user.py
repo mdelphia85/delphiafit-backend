@@ -20,6 +20,7 @@ class User(Base):
     password_reset_expires_at = Column(DateTime, nullable=True)
 
     profile = relationship("UserProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    trainer_profile = relationship("TrainerProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")
 
     # ---------------------------------------------------------
     # Social + Community Relationships
