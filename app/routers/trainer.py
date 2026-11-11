@@ -117,6 +117,34 @@ def list_invitations(payload: dict = Depends(get_current_user), db: Session = De
     return {"invitations": [{"id": link.id, "trainer_name": trainer.name} for link, trainer in rows]}
 
 
+@router.get("/my-trainers")
+def list_my_trainers(payload: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    user = _user(payload, db)
+    rows = (
+        db.query(TrainerClientLink, User)
+        .join(User, User.id == TrainerClientLink.trainer_user_id)
+        .filter(TrainerClientLink.client_user_id == user.id, TrainerClientLink.status == "active")
+        .order_by(TrainerClientLink.accepted_at.desc())
+        .all()
+    )
+    return {"trainers": [{"id": trainer.id, "name": trainer.name} for link, trainer in rows]}
+
+
+@router.delete("/my-trainers/{trainer_id}")
+def disconnect_trainer(trainer_id: int, payload: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    user = _user(payload, db)
+    link = db.query(TrainerClientLink).filter(
+        TrainerClientLink.trainer_user_id == trainer_id,
+        TrainerClientLink.client_user_id == user.id,
+        TrainerClientLink.status == "active",
+    ).first()
+    if link is None:
+        raise HTTPException(status_code=404, detail="Trainer relationship not found")
+    db.delete(link)
+    db.commit()
+    return {"status": "disconnected"}
+
+
 @router.post("/invitations/{invitation_id}/accept")
 def accept_invitation(invitation_id: int, payload: dict = Depends(get_current_user), db: Session = Depends(get_db)):
     user = _user(payload, db)
