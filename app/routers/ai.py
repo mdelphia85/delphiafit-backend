@@ -12,6 +12,7 @@ from app.database.connection import get_db
 from app.models.ai_record import AIRecord
 from app.models.workout_log import WorkoutLog
 from app.services.ai_engine import AIEngine
+from app.services import conversational_coach
 from app.utils.security import get_current_user_id
 
 router = APIRouter(prefix="/ai", tags=["AI"])
@@ -234,6 +235,8 @@ def ai_coach(
     user_id: int = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
+    if not req.message.strip() or len(req.message) > 4000:
+        raise HTTPException(status_code=422, detail="Question must be 1-4000 characters")
     request_payload = {"user_data": req.user_data, "message": req.message}
     try:
         if idempotency_key is not None:
@@ -251,7 +254,36 @@ def ai_coach(
                 return {**json.loads(existing.result_json), "record_id": existing.id}
 
         user_data, used = _adapt(db, user_id, req.user_data)
-        result = ai.coach(user_data, req.message)
+        if conversational_coach.is_conversational_coach_configured():
+            earlier = (
+                db.query(AIRecord)
+                .filter(AIRecord.user_id == user_id, AIRecord.feature == "coach")
+                .order_by(AIRecord.id.desc())
+                .limit(6)
+                .all()
+            )
+            prior = []
+            for item in reversed(earlier):
+                try:
+                    prior_input = json.loads(item.input_json)
+                    prior_result = json.loads(item.result_json)
+                    prior.append({
+                        "message": prior_input.get("message", ""),
+                        "answer": prior_result.get("coach_response", ""),
+                    })
+                except (TypeError, ValueError):
+                    continue
+            result = {
+                "coach_response": conversational_coach.respond(
+                    req.message, user_data, used, prior
+                ),
+                "mode": "conversational",
+            }
+        else:
+            # Keep existing functionality working until an API key is
+            # configured. The UI must disclose that this is a limited mode.
+            result = ai.coach(user_data, req.message)
+            result["mode"] = "limited"
         result["adaptive_inputs"] = used
         row = _save(
             db,
