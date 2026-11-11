@@ -327,3 +327,33 @@ def test_knee_pain_coaching_is_saved_and_returned():
     records = client.get("/ai/records", headers=user).json()
     assert records[0]["id"] == body["record_id"]
     assert records[0]["result"]["coach_response"] == body["coach_response"]
+
+
+def test_one_logged_workout_does_not_infer_beginner_training_experience():
+    user = make_user("adapt-no-infer-" + uuid.uuid4().hex[:8] + "@example.com")
+    logged = client.post(
+        "/workouts/save",
+        headers=user,
+        json={"mode": "manual", "duration_minutes": 30, "manual_name": "Gym session"},
+    )
+    assert logged.status_code == 200, logged.text
+
+    result = client.post(
+        "/ai/coach", headers=user,
+        json={"user_data": {}, "message": "best workouts to build muscle"},
+    )
+    assert result.status_code == 200, result.text
+    data = result.json()
+    assert "hypertrophy" in data["coach_response"].lower()
+    assert "Beginner bodyweight session" not in data["coach_response"]
+    assert data["adaptive_inputs"]["workouts_logged"] == 1
+
+    generic = client.post(
+        "/ai/coach", headers=user,
+        json={"user_data": {}, "message": "What is a useful workout?"},
+    )
+    assert generic.status_code == 200
+    assert "Beginner bodyweight session" not in generic.json()["coach_response"]
+
+    history = client.get("/ai/records", headers=user).json()
+    assert any(row["result"]["coach_response"] == data["coach_response"] for row in history)
