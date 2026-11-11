@@ -81,3 +81,15 @@ def send_coach_invitation(email: str, token: str) -> bool:
         "You have been invited to coach on DelphiaFit",
         f"Use this link to set up your DelphiaFit coach access:\n\n{link}",
     )
+
+
+def send_trainer_invitation(email: str, trainer_name: str) -> bool:
+    base = os.getenv("FRONTEND_URL", "https://delphiafit.com").rstrip("/")
+    link = f"{base}/my-trainer"
+    return _send_email(
+        email,
+        "Personal trainer invitation on DelphiaFit",
+        f"{trainer_name} invited you to connect for personal training on DelphiaFit. "
+        f"Sign in and open My Trainer to accept or decline:\n\n{link}\n\n"
+        "Your training history is not visible to this trainer until you accept.",
+    )
