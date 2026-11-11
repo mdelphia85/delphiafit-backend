@@ -49,6 +49,7 @@ def _serialize(user: User, last_login) -> dict:
         "name": user.name,
         "email": user.email,
         "is_admin": bool(user.is_admin),
+        "is_trainer": bool(user.trainer_profile and user.trainer_profile.is_active),
         "is_suspended": bool(user.is_suspended),
         "streak": user.streak or 0,
         "created_at": user.created_at,
