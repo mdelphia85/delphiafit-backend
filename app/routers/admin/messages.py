@@ -28,7 +28,7 @@ def _payload(message: Message) -> dict:
         "subject": message.subject,
         "message": message.message,
         "is_read": bool(message.is_read),
-        "resolved": bool(message.is_read),
+        "resolved": bool(message.resolved),
         "created_at": message.created_at.isoformat() if message.created_at else None,
     }
 
@@ -89,11 +89,11 @@ def mark_message_read(message_id: int, db: Session = Depends(get_db), admin=Depe
 @router.patch("/admin/messages/{message_id}/resolve")
 def toggle_message_resolved(message_id: int, db: Session = Depends(get_db), admin=Depends(verify_admin)):
     message = _get(db, message_id)
-    message.is_read = not bool(message.is_read)
+    message.resolved = not bool(message.resolved)
     db.commit()
     db.refresh(message)
     record_audit(
-        db, admin, "message.resolve" if message.is_read else "message.unresolve",
+        db, admin, "message.resolve" if message.resolved else "message.unresolve",
         "message", message_id, message.subject,
     )
     return {"status": "updated", "message": _payload(message)}
