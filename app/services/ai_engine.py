@@ -73,7 +73,7 @@ class AIEngine:
         ))
         explicit_bodyweight = bool(re.search(r"\b(bodyweight|body weight|no equipment|at home)\b", text))
         explicit_beginner = bool(re.search(r"\b(beginner|beginner's|new to exercise)\b", text))
-        prefix = f"Estimated training difficulty: {difficulty}. This is not an assessment of injury or medical readiness.\\n\\n"
+        prefix = f"Estimated training difficulty: {difficulty}. This is not an assessment of injury or medical readiness.\n\n"
         if re.search(r"\b(sleep|recovery|recover|rest|fatigue|tired)\b", text):
             advice = (
                 "For recovery, consider an easier session or a rest day when you feel unusually fatigued. "
