@@ -228,6 +228,16 @@ def list_records(user_id: int = Depends(get_current_user_id), db: Session = Depe
         _raise_ai_failure(db, "records read", user_id, exc, "Unable to load your coaching history.")
 
 
+@router.get("/coach/capabilities")
+def ai_coach_capabilities():
+    """Expose mode availability, never credentials or provider metadata."""
+    configured = conversational_coach.is_conversational_coach_configured()
+    return {
+        "mode": "conversational" if configured else "limited",
+        "general_questions_available": configured,
+    }
+
+
 @router.post("/coach")
 def ai_coach(
     req: CoachRequest,
