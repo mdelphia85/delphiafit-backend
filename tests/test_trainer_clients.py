@@ -67,8 +67,16 @@ def test_only_owner_admin_may_grant_trainer_and_role_is_not_self_assigned():
 
     assert grant(member, admin).status_code == 200
     assert http.get("/trainer/me", headers=auth(member)).json() == {"is_trainer": True}
+    details = http.get(f"/admin/users/{member['id']}", headers=auth(admin))
+    assert details.status_code == 200
+    assert details.json()["is_trainer"] is True
+    listing = http.get("/admin/users", headers=auth(admin))
+    assert listing.status_code == 200
+    assert any(row["id"] == member["id"] and row["is_trainer"] for row in listing.json())
     assert grant(member, admin, enabled=False).status_code == 200
     assert http.get("/trainer/me", headers=auth(member)).json() == {"is_trainer": False}
+    details = http.get(f"/admin/users/{member['id']}", headers=auth(admin))
+    assert details.json()["is_trainer"] is False
 
 
 def test_client_consent_required_and_trainer_data_scoped(monkeypatch):
