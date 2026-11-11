@@ -30,6 +30,7 @@ class UserResponse(BaseModel):
 
 class AdminUserResponse(UserResponse):
     is_admin: bool
+    is_trainer: bool = False
     is_suspended: bool = False
     streak: int
     created_at: datetime | None = None
