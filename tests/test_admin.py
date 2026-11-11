@@ -297,10 +297,18 @@ def test_user_message_and_admin_inbox(admin, regular):
     assert {"id", "name", "email", "message", "resolved", "created_at"} <= set(msg)
     assert msg["email"] == "regular-joe@example.com" and msg["resolved"] is False
 
+    before_unread = client.get("/admin/dashboard", headers=admin["h"]).json()["unread_messages"]
     toggled = client.patch(f"/admin/messages/{mid}/resolve", headers=admin["h"]).json()
     assert toggled["message"]["resolved"] is True
-    assert client.patch(f"/admin/messages/{mid}/resolve", headers=admin["h"]).json()["message"]["resolved"] is False
-    assert client.patch(f"/admin/messages/{mid}/read", headers=admin["h"]).json()["message"]["is_read"] is True
+    assert toggled["message"]["is_read"] is False
+    assert client.get("/admin/dashboard", headers=admin["h"]).json()["unread_messages"] == before_unread
+    untoggled = client.patch(f"/admin/messages/{mid}/resolve", headers=admin["h"]).json()
+    assert untoggled["message"]["resolved"] is False
+    assert untoggled["message"]["is_read"] is False
+    marked_read = client.patch(f"/admin/messages/{mid}/read", headers=admin["h"]).json()
+    assert marked_read["message"]["is_read"] is True
+    assert marked_read["message"]["resolved"] is False
+    assert client.get("/admin/dashboard", headers=admin["h"]).json()["unread_messages"] == before_unread - 1
 
     assert client.delete(f"/admin/messages/{mid}", headers=admin["h"]).status_code == 200
     assert client.delete(f"/admin/messages/{mid}", headers=admin["h"]).status_code == 404
@@ -404,3 +412,37 @@ def test_admin_actions_are_audited_with_actor(admin):
     recent = client.get("/admin/actions/recent", headers=h).json()["actions"]
     assert recent and {"id", "action", "admin", "timestamp"} <= set(recent[0])
     assert client.get("/admin/config", headers=h).json()["appearance"] == {"theme": "dark"}
+
+
+def test_message_resolution_migration_preserves_legacy_status_and_is_idempotent(monkeypatch):
+    from sqlalchemy import create_engine, text
+    from app.database import migrate
+
+    legacy = create_engine("sqlite://")
+    with legacy.begin() as connection:
+        connection.execute(text(
+            "CREATE TABLE messages (id INTEGER PRIMARY KEY, is_read BOOLEAN)"
+        ))
+        connection.execute(text("INSERT INTO messages (id, is_read) VALUES (1, TRUE), (2, FALSE)"))
+
+    monkeypatch.setattr(migrate, "engine", legacy)
+    migrate.migrate_admin_message_resolution()
+    with legacy.begin() as connection:
+        states = connection.execute(
+            text("SELECT id, is_read, resolved FROM messages ORDER BY id")
+        ).all()
+        assert [(row[0], bool(row[1]), bool(row[2])) for row in states] == [
+            (1, True, True), (2, False, False)
+        ]
+        # Once independent, resolution must survive subsequent migrations.
+        connection.execute(text("UPDATE messages SET resolved = FALSE WHERE id = 1"))
+        connection.execute(text("UPDATE messages SET resolved = TRUE WHERE id = 2"))
+    migrate.migrate_admin_message_resolution()
+    with legacy.connect() as connection:
+        states = connection.execute(
+            text("SELECT id, is_read, resolved FROM messages ORDER BY id")
+        ).all()
+        assert [(row[0], bool(row[1]), bool(row[2])) for row in states] == [
+            (1, True, False), (2, False, True)
+        ]
+    legacy.dispose()
