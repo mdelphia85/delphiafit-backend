@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.database.connection import get_db
+from app.models.user import User
 from app.models.user_data_record import UserDataRecord
 from app.services.food_scan import (
     ScanProviderUnavailable,
@@ -74,13 +75,23 @@ def save_scan(
     db: Session = Depends(get_db),
 ):
     _validate_barcode(body.barcode)
+    # Serialize saves for this account before examining or changing scan history.
+    # PostgreSQL holds this row lock through commit, including when history is empty.
+    user = db.query(User.id).filter(User.id == user_id).with_for_update().one_or_none()
+    if user is None:
+        raise HTTPException(status_code=401, detail="Invalid user token.")
+
     records = _history(db, user_id)
-    for row in records:
-        if row.data.get("barcode") == body.barcode:
-            row.data = {"barcode": body.barcode, "scanned_at": datetime.now(timezone.utc).isoformat()}
-            db.commit()
-            db.refresh(row)
-            return {"id": row.id, **row.data}
+    matching_records = [row for row in records if row.data.get("barcode") == body.barcode]
+    if matching_records:
+        row, *duplicates = matching_records
+        row.data = {"barcode": body.barcode, "scanned_at": datetime.now(timezone.utc).isoformat()}
+        for duplicate in duplicates:
+            db.delete(duplicate)
+        db.commit()
+        db.refresh(row)
+        return {"id": row.id, **row.data}
+
     row = UserDataRecord(
         user_id=user_id,
         collection=HISTORY_COLLECTION,
