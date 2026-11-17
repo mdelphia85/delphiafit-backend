@@ -97,17 +97,22 @@ def _nutrition(product: dict) -> dict:
     source = product.get("nutriments")
     if not isinstance(source, dict):
         source = {}
-    sodium_g = _nonnegative(source.get("sodium_100g"))
-    salt_g = _nonnegative(source.get("salt_100g"))
+    def bounded(name: str, limit: float):
+        value = _nonnegative(source.get(name))
+        return value if value is not None and value <= limit else None
+
+    sodium_g = bounded("sodium_100g", 40)
+    salt_g = bounded("salt_100g", 100)
     # OFF normalizes sodium_100g in grams; UI displays milligrams.
+    # Exclude impossible per-100g values rather than creating false scores.
     return {
-        "calories_kcal": _nonnegative(source.get("energy-kcal_100g")),
-        "protein_g": _nonnegative(source.get("proteins_100g")),
-        "carbs_g": _nonnegative(source.get("carbohydrates_100g")),
-        "fat_g": _nonnegative(source.get("fat_100g")),
-        "saturated_fat_g": _nonnegative(source.get("saturated-fat_100g")),
-        "sugars_g": _nonnegative(source.get("sugars_100g")),
-        "fiber_g": _nonnegative(source.get("fiber_100g")),
+        "calories_kcal": bounded("energy-kcal_100g", 1000),
+        "protein_g": bounded("proteins_100g", 100),
+        "carbs_g": bounded("carbohydrates_100g", 100),
+        "fat_g": bounded("fat_100g", 100),
+        "saturated_fat_g": bounded("saturated-fat_100g", 100),
+        "sugars_g": bounded("sugars_100g", 100),
+        "fiber_g": bounded("fiber_100g", 100),
         "sodium_mg": round(sodium_g * 1000, 2) if sodium_g is not None else
                      round(salt_g * 1000 / 2.5, 2) if salt_g is not None else None,
     }
