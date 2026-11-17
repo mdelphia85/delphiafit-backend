@@ -21,7 +21,8 @@ OFF_ROOT = "https://world.openfoodfacts.org"
 LOOKUP_FIELDS = (
     "code,product_name,brands,ingredients_text,allergens_tags,traces_tags,"
     "additives_tags,nutriments,serving_size,quantity,nutriscore_grade,"
-    "image_front_url,nutrition_data_per,states_tags,product_quantity_unit"
+    "image_front_url,nutrition_data_per,states_tags,product_quantity_unit,"
+    "data_quality_errors_tags,no_nutrition_data"
 )
 TTL_SECONDS = 6 * 60 * 60
 NOT_FOUND_TTL_SECONDS = 15 * 60
@@ -118,59 +119,80 @@ def _nutrition(product: dict) -> dict:
     }
 
 
-def nutrition_indicator(nutrition: dict) -> dict:
-    """Transparent experimental composition indicator per 100 g or 100 ml.
+# These are DISPLAY anchors for the established five Nutri-Score grades, not a
+# separate nutrient-profiling algorithm. Five grades mean five index values;
+# never imply that 90 and 91 are independently measured health-risk differences.
+GRADE_INDEX = {"a": 90, "b": 70, "c": 50, "d": 30, "e": 10}
+GRADE_REQUIRED = ("calories_kcal", "saturated_fat_g", "sugars_g", "sodium_mg")
+GRADE_STANDARD_URL = (
+    "https://www.santepubliquefrance.fr/en/nutrition-and-physical-activity/nutri-score"
+)
 
-    It is NOT a validated health-risk assessment or a replacement for Nutri-Score.
-    Undefined required nutrients produce an unrated product, never invented zeros.
-    Thresholds and weights are published to the caller for review.
+
+def standard_grade_index(product: dict, nutrition: dict) -> dict:
+    """Map a provider-reported Nutri-Score grade to a transparent 0–100 index.
+
+    We do NOT calculate Nutri-Score ourselves: official grade derivation differs
+    by product class (food, beverage, oil, nuts, etc.) and algorithm version.
+    Score only when the provider gives a valid grade and essential per-100g/ml
+    nutrition data pass our integrity checks. A source grade does not establish
+    that the packaging contains all allergens or that the food suits a person.
     """
-    required = (
-        "calories_kcal", "saturated_fat_g", "sugars_g",
-        "sodium_mg", "protein_g", "fiber_g",
-    )
-    missing = [key for key in required if nutrition.get(key) is None]
-    methodology = {
-        "version": "beta-1",
-        "basis": "per 100 g or 100 ml (based on product category)",
-        "formula": "80 minus sugar, saturated-fat, sodium and excess-energy points; plus fiber and protein points; clamped to 0–100.",
-        "limits": (
-            "Experimental, not clinically validated. Does not measure food safety, "
-            "processing, ingredient risk, portion size or personal suitability. "
-            "Compare similar food categories only."
-        ),
-        "required": list(required),
-    }
+    raw = product.get("nutriscore_grade")
+    grade = str(raw).strip().lower() if isinstance(raw, str) else None
+    if grade not in GRADE_INDEX:
+        grade = None
+
+    missing = [name for name in GRADE_REQUIRED if nutrition.get(name) is None]
+    errors = product.get("data_quality_errors_tags")
+    flagged = bool(errors) if isinstance(errors, list) else False
+    no_nutrition = product.get("no_nutrition_data") is True
+    reasons = []
+    if grade is None:
+        reasons.append("Open Food Facts has no supported Nutri-Score grade for this product.")
     if missing:
-        return {"score": None, "missing": missing, "methodology": methodology,
-                "factors": []}
-    calories = nutrition["calories_kcal"]
-    factors = [
-        ("Sugar", -min(25.0, nutrition["sugars_g"] * 1.25)),
-        ("Saturated fat", -min(20.0, nutrition["saturated_fat_g"] * 4.0)),
-        ("Sodium", -min(20.0, nutrition["sodium_mg"] / 40.0)),
-        ("Energy density", -min(15.0, max(0, calories - 200) * 0.06)),
-        ("Fiber", min(10.0, nutrition["fiber_g"] * 2.0)),
-        ("Protein", min(10.0, nutrition["protein_g"] * (2.0 / 3.0))),
-    ]
-    score = max(0, min(100, round(80 + sum(points for _, points in factors))))
+        reasons.append("Required nutrition facts are missing or invalid: " +
+                       ", ".join(name.replace("_", " ") for name in missing) + ".")
+    if flagged:
+        reasons.append("The product record has a provider data-quality error.")
+    if no_nutrition:
+        reasons.append("The provider reports that nutrition data are unavailable.")
+
+    methodology = {
+        "version": "1.0",
+        "name": "Nutri-Score-derived display index",
+        "basis": "Provider-reported Nutri-Score A–E based on food composition per 100 g or 100 ml.",
+        "standard": "Nutri-Score",
+        "standard_url": GRADE_STANDARD_URL,
+        "mapping": dict(GRADE_INDEX),
+        "formula": (
+            "A=90, B=70, C=50, D=30, E=10. This is a display conversion of "
+            "five existing grades, not a second independently validated food score."
+        ),
+        "limits": (
+            "Nutri-Score describes nutritional composition, not individual health "
+            "effects, additive safety, allergens, ingredient authenticity, organic "
+            "quality, portion size, or athletic-goal suitability. The Open Food Facts "
+            "record may use an older Nutri-Score algorithm; its version is not verified."
+        ),
+        "required": list(GRADE_REQUIRED),
+    }
     return {
-        "score": score,
-        "missing": [],
+        "score": GRADE_INDEX[grade] if not reasons else None,
+        "grade": grade,
+        "missing": missing,
+        "reasons": reasons,
         "methodology": methodology,
-        "factors": [{"label": name, "points": round(points, 1)} for name, points in factors],
+        "factors": [],
     }
 
 
 def normalize_product(barcode: str, product: dict) -> dict:
     nutrition = _nutrition(product)
-    indicator = nutrition_indicator(nutrition)
+    indicator = standard_grade_index(product, nutrition)
     required_fields = ("calories_kcal", "protein_g", "carbs_g", "fat_g",
                        "saturated_fat_g", "sugars_g", "fiber_g", "sodium_mg")
     available = [field for field in required_fields if nutrition[field] is not None]
-    grade = str(product.get("nutriscore_grade") or "").lower()
-    if grade not in ("a", "b", "c", "d", "e"):
-        grade = None
     unit = product.get("product_quantity_unit")
     nutrition_unit = unit if unit in ("g", "ml") else None
     image = product.get("image_front_url")
@@ -188,17 +210,19 @@ def normalize_product(barcode: str, product: dict) -> dict:
         "additives": _safe_tags(product.get("additives_tags")),
         "nutrition_per_100g_or_100ml": nutrition,
         "nutrition_unit": nutrition_unit,
-        "nutri_score_grade": grade,
+        "nutri_score_grade": indicator["grade"],
         "delphiafit_score_0_100": indicator["score"],
-        "score_status": "experimental" if indicator["score"] is not None else "unrated",
+        "score_status": "standard-derived" if indicator["score"] is not None else "unrated",
         "score_note": (
-            "Experimental nutrition composition indicator. Not a health or safety rating."
+            "0–100 index derived from the provider's Nutri-Score grade. Five grade bands, "
+            "not a personalized health or food-safety rating."
             if indicator["score"] is not None else
-            "Not rated: required nutrition values are missing. No values were assumed."
+            "Not rated. " + " ".join(indicator["reasons"])
         ),
         "score_factors": indicator["factors"],
         "score_methodology": indicator["methodology"],
         "missing_score_nutrients": indicator["missing"],
+        "score_unrated_reasons": indicator["reasons"],
         "data_completeness_percent": round(len(available) / len(required_fields) * 100),
         "missing_nutrients": [key for key in required_fields if key not in available],
         "image_url": image,
