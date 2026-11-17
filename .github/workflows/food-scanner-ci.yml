@@ -1,0 +1,24 @@
+name: Food Scanner Safety
+
+on:
+  pull_request:
+    paths:
+      - "app/services/food_scan.py"
+      - "app/routers/food_scan.py"
+      - "app/main.py"
+      - "tests/test_food_scanner.py"
+      - ".github/workflows/food-scanner-ci.yml"
+  workflow_dispatch:
+
+jobs:
+  scanner-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Check syntax
+        run: python -m compileall -q app/services/food_scan.py app/routers/food_scan.py app/main.py tests/test_food_scanner.py
+      - name: Validate scanner without provider network calls
+        run: python -m unittest discover -s tests -p 'test_food_scanner.py' -v
