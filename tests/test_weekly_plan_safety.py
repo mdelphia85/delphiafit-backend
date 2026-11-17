@@ -40,7 +40,7 @@ class WeeklyPlanSafetyTests(unittest.TestCase):
             "injuries": ["shoulder"],
         })
         self.assertTrue(result["requires_injury_review"])
-        self.assertIn("review", result["safety_note"].lower())
+        self.assertIn("qualified professional", result["safety_note"].lower())
         self.assertEqual(len(result["plan"]), 3)
         self.assertFalse(any(day["exercises"] for day in result["plan"]))
         self.assertTrue(all(day["conditioning"] is None for day in result["plan"]))
