@@ -134,5 +134,49 @@ class FoodScannerTests(unittest.TestCase):
                 food_scan.get_product("99999999")
 
 
+    def test_provider_http_contract_parses_v3_sample_response(self):
+        import json
+        from io import BytesIO
+        from urllib.parse import parse_qs, urlparse
+
+        payload = {"status": "success", "product": sample_product()}
+        with patch.object(food_scan, "urlopen", return_value=BytesIO(json.dumps(payload).encode())) as transport:
+            result = food_scan._fetch_provider("3017620422003")
+        self.assertEqual(result["product_name"], "Plain test yogurt")
+        sent_request = transport.call_args.args[0]
+        parsed = urlparse(sent_request.full_url)
+        self.assertEqual(parsed.scheme, "https")
+        self.assertEqual(parsed.netloc, "world.openfoodfacts.org")
+        self.assertEqual(parsed.path, "/api/v3/product/3017620422003")
+        params = parse_qs(parsed.query)
+        self.assertEqual(params["product_type"], ["food"])
+        self.assertIn("nutriscore_grade", params["fields"][0])
+        self.assertIn("data_quality_errors_tags", params["fields"][0])
+        self.assertIn("DelphiaFit/", sent_request.get_header("User-agent"))
+        self.assertEqual(transport.call_args.kwargs["timeout"], 6)
+
+    def test_provider_not_found_and_failed_body_do_not_invent_product(self):
+        import json
+        from io import BytesIO
+        from urllib.error import HTTPError
+        error = HTTPError("https://world.openfoodfacts.org/api/v3/product/12345678", 404, "Not found", {}, None)
+        with patch.object(food_scan, "urlopen", side_effect=error):
+            self.assertIsNone(food_scan._fetch_provider("12345678"))
+        with patch.object(food_scan, "urlopen", return_value=BytesIO(json.dumps({
+            "status": "failure", "product": sample_product()
+        }).encode())):
+            self.assertIsNone(food_scan._fetch_provider("12345678"))
+
+    def test_provider_timeout_and_oversized_payload_fail_closed(self):
+        from io import BytesIO
+        from urllib.error import URLError
+        with patch.object(food_scan, "urlopen", side_effect=URLError("network outage")):
+            with self.assertRaises(food_scan.ScanProviderUnavailable):
+                food_scan._fetch_provider("12345678")
+        with patch.object(food_scan, "urlopen", return_value=BytesIO(b"X" * (256 * 1024 + 1))):
+            with self.assertRaises(food_scan.ScanProviderUnavailable):
+                food_scan._fetch_provider("12345678")
+
+
 if __name__ == "__main__":
     unittest.main()
