@@ -2,13 +2,14 @@ from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, Foreign
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
-from app.database import Base
+from app.database.connection import Base
 
 
 class DisasterOperation(Base):
     __tablename__ = "disaster_operations"
 
     id = Column(Integer, primary_key=True, index=True)
+    owner_user_id = Column(Integer, nullable=True, index=True)
 
     name = Column(String, nullable=False)
     type = Column(String, nullable=False)  # flood, earthquake, hurricane, wildfire, tornado, etc.

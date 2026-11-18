@@ -42,7 +42,7 @@ def update_recipe(db: Session, recipe_id: int, data: RecipeUpdate) -> Optional[R
     if not recipe:
         return None
 
-    for field, value in data.dict(exclude_unset=True).items():
+    for field, value in data.model_dump(exclude_unset=True).items():
         setattr(recipe, field, value)
 
     db.commit()

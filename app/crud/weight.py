@@ -8,8 +8,8 @@ from app.schemas.weight import WeightLogCreate, WeightLogUpdate
 def create_weight_log(db: Session, user_id: int, data: WeightLogCreate) -> WeightLog:
     log = WeightLog(
         user_id=user_id,
-        weight_kg=data.weight_kg,
-        body_fat_percent=data.body_fat_percent,
+        weight_kg=data.weight,
+        body_fat_percent=data.body_fat,
         date=data.date,
     )
     db.add(log)
@@ -36,8 +36,14 @@ def update_weight_log(db: Session, log_id: int, data: WeightLogUpdate) -> Option
     if not log:
         return None
 
-    for field, value in data.dict(exclude_unset=True).items():
-        setattr(log, field, value)
+    updates = data.model_dump(exclude_unset=True)
+    field_map = {
+        "weight": "weight_kg",
+        "body_fat": "body_fat_percent",
+        "date": "date",
+    }
+    for field, value in updates.items():
+        setattr(log, field_map[field], value)
 
     db.commit()
     db.refresh(log)

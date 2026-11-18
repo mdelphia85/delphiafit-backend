@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, text
 from datetime import datetime
 from app.database.connection import Base
 
@@ -11,4 +11,6 @@ class Message(Base):
     subject = Column(String, nullable=False)
     message = Column(String, nullable=False)
     is_read = Column(Boolean, default=False)
+    # Resolution is independent of whether the owner has read the message.
+    resolved = Column(Boolean, nullable=False, default=False, server_default=text("false"))
     created_at = Column(DateTime, default=datetime.utcnow)

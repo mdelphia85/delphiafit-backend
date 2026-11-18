@@ -27,7 +27,3 @@ class Post(Base):
     comments = relationship("Comment", back_populates="post", cascade="all, delete-orphan")
     reactions = relationship("Reaction", back_populates="post", cascade="all, delete-orphan")
 
-
-# Add posts relationship to Group model
-# (This is safe even if Group is already defined — SQLAlchemy resolves it)
-Group.posts = relationship("Post", back_populates="group")

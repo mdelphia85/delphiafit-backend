@@ -1,27 +1,27 @@
 from typing import List, Optional
 from sqlalchemy.orm import Session
 
-from app.models.pt import PTSession
+from app.models.pt import PTPlan
 
 
-def create_pt_session(db: Session, data: dict) -> PTSession:
-    session = PTSession(**data)
-    db.add(session)
+def create_pt_plan(db: Session, data: dict) -> PTPlan:
+    plan = PTPlan(**data)
+    db.add(plan)
     db.commit()
-    db.refresh(session)
-    return session
+    db.refresh(plan)
+    return plan
 
 
-def get_pt_session(db: Session, session_id: int) -> Optional[PTSession]:
-    return db.query(PTSession).filter(PTSession.id == session_id).first()
+def get_pt_plan(db: Session, plan_id: int) -> Optional[PTPlan]:
+    return db.query(PTPlan).filter(PTPlan.id == plan_id).first()
 
 
-def get_pt_sessions(db: Session) -> List[PTSession]:
-    return db.query(PTSession).all()
+def get_pt_plans(db: Session) -> List[PTPlan]:
+    return db.query(PTPlan).all()
 
 
-def update_pt_session(db: Session, session_id: int, data: dict) -> Optional[PTSession]:
-    session = get_pt_session(db, session_id)
+def update_pt_plan(db: Session, plan_id: int, data: dict) -> Optional[PTPlan]:
+    plan = get_pt_plan(db, plan_id)
     if not session:
         return None
 
@@ -29,12 +29,12 @@ def update_pt_session(db: Session, session_id: int, data: dict) -> Optional[PTSe
         setattr(session, field, value)
 
     db.commit()
-    db.refresh(session)
-    return session
+    db.refresh(plan)
+    return plan
 
 
-def delete_pt_session(db: Session, session_id: int) -> bool:
-    session = get_pt_session(db, session_id)
+def delete_pt_plan(db: Session, plan_id: int) -> bool:
+    plan = get_pt_plan(db, plan_id)
     if not session:
         return False
 

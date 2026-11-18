@@ -20,16 +20,43 @@ class WeeklyPlanGenerator:
         goals = profile.get("goals", [])
         injuries = profile.get("injuries", [])
 
+        # A list of reported injuries does not provide enough information to
+        # identify safe movements, loading, or a return-to-training clearance.
+        # Keep the plan structure but do not prescribe unverified exercises.
+        needs_review = bool(injuries)
         split = self._choose_split(sessions_per_week, difficulty, goals)
         days = self._build_days(split, difficulty, focus, recovery, injuries)
 
         return {
             "sessions_per_week": sessions_per_week,
             "split": split,
-            "focus": focus,
-            "recovery_status": recovery,
+            "focus": (
+                "Training schedule pending review of reported restrictions"
+                if needs_review else focus
+            ),
+            "recovery_status": self._describe_recovery(recovery),
+            "requires_injury_review": needs_review,
+            "safety_note": (
+                "Restrictions were reported. No exercises or conditioning are "
+                "automatically prescribed because this planner cannot determine "
+                "which movements are safe. Consult a qualified professional for "
+                "individualized advice before using this schedule."
+                if needs_review else
+                "This plan is general exercise guidance, not medical clearance."
+            ),
             "plan": days,
         }
+
+    @staticmethod
+    def _describe_recovery(status: str) -> str:
+        """Reported sleep/fatigue indicator, not diagnosis or injury clearance."""
+        if "overreached" in status:
+            return "High fatigue or short sleep reported; consider additional rest."
+        if "fatigued" in status:
+            return "Reported sleep or fatigue suggests a lighter workload."
+        if "under" in status and "recover" in status:
+            return "Few rest days reported; consider additional recovery time."
+        return "Reported sleep and fatigue suggest typical recovery; not medical clearance."
 
     # ---------------------------------------------------------
     # Choose Training Split
@@ -69,12 +96,18 @@ class WeeklyPlanGenerator:
             day = {
                 "day": i,
                 "type": template["type"],
-                "primary_focus": self._day_focus(template["type"], focus),
-                "intensity": self._day_intensity(difficulty, recovery, i),
-                "volume": self._day_volume(difficulty, i),
+                "primary_focus": (
+                    "Exercise selection requires individual review"
+                    if injuries else self._day_focus(template["type"], focus)
+                ),
+                "intensity": None if injuries else self._day_intensity(difficulty, recovery, i),
+                "volume": None if injuries else self._day_volume(difficulty, i),
                 "exercises": self._exercise_block(template["type"], injuries),
-                "conditioning": self._conditioning_block(focus, i),
-                "notes": self._day_notes(recovery, i),
+                "conditioning": None if injuries else self._conditioning_block(focus, i),
+                "notes": (
+                    "No exercises assigned until reported restrictions have been reviewed."
+                    if injuries else self._day_notes(recovery, i)
+                ),
             }
             days.append(day)
 
@@ -173,44 +206,47 @@ class WeeklyPlanGenerator:
     # Exercise Block
     # ---------------------------------------------------------
     def _exercise_block(self, day_type: str, injuries: List[str]) -> List[Dict[str, Any]]:
-        safe_suffix = " (injury‑friendly)" if injuries else ""
+        # Do not label exercises "injury-friendly" without assessing the injury.
+        # General templates are offered only when no restrictions are reported.
+        if injuries:
+            return []
 
         if day_type == "upper":
             return [
-                {"name": f"Bench Press{safe_suffix}", "sets": 3, "reps": "5–8"},
-                {"name": f"Row Variation{safe_suffix}", "sets": 3, "reps": "8–10"},
-                {"name": f"Shoulder Press{safe_suffix}", "sets": 3, "reps": "6–8"},
+                {"name": "Bench Press", "sets": 3, "reps": "5–8"},
+                {"name": "Seated Cable Row", "sets": 3, "reps": "8–10"},
+                {"name": "Dumbbell Shoulder Press", "sets": 3, "reps": "6–8"},
             ]
         if day_type == "lower":
             return [
-                {"name": f"Squat Variation{safe_suffix}", "sets": 3, "reps": "5–8"},
-                {"name": f"Hinge Variation{safe_suffix}", "sets": 3, "reps": "6–8"},
-                {"name": f"Single‑Leg Work{safe_suffix}", "sets": 3, "reps": "8–10"},
+                {"name": "Goblet Squat", "sets": 3, "reps": "5–8"},
+                {"name": "Romanian Deadlift", "sets": 3, "reps": "6–8"},
+                {"name": "Reverse Lunge", "sets": 3, "reps": "8–10"},
             ]
         if day_type == "push":
             return [
-                {"name": f"Bench or Dumbbell Press{safe_suffix}", "sets": 3, "reps": "6–10"},
-                {"name": f"Overhead Press{safe_suffix}", "sets": 3, "reps": "6–8"},
-                {"name": f"Chest Isolation{safe_suffix}", "sets": 3, "reps": "10–12"},
+                {"name": "Dumbbell Bench Press", "sets": 3, "reps": "6–10"},
+                {"name": "Dumbbell Overhead Press", "sets": 3, "reps": "6–8"},
+                {"name": "Dumbbell Chest Fly", "sets": 3, "reps": "10–12"},
             ]
         if day_type == "pull":
             return [
-                {"name": f"Deadlift or RDL{safe_suffix}", "sets": 3, "reps": "5–8"},
-                {"name": f"Row Variation{safe_suffix}", "sets": 3, "reps": "8–10"},
-                {"name": f"Pull‑up / Lat Work{safe_suffix}", "sets": 3, "reps": "6–10"},
+                {"name": "Romanian Deadlift", "sets": 3, "reps": "5–8"},
+                {"name": "Seated Cable Row", "sets": 3, "reps": "8–10"},
+                {"name": "Lat Pulldown", "sets": 3, "reps": "6–10"},
             ]
         if day_type == "legs":
             return [
-                {"name": f"Squat Variation{safe_suffix}", "sets": 3, "reps": "5–8"},
-                {"name": f"Lunge / Split Squat{safe_suffix}", "sets": 3, "reps": "8–10"},
-                {"name": f"Hamstring Isolation{safe_suffix}", "sets": 3, "reps": "10–12"},
+                {"name": "Goblet Squat", "sets": 3, "reps": "5–8"},
+                {"name": "Reverse Lunge", "sets": 3, "reps": "8–10"},
+                {"name": "Leg Curl", "sets": 3, "reps": "10–12"},
             ]
 
         # full_body or default
         return [
-            {"name": f"Squat Variation{safe_suffix}", "sets": 3, "reps": "5–8"},
-            {"name": f"Press Variation{safe_suffix}", "sets": 3, "reps": "6–10"},
-            {"name": f"Row Variation{safe_suffix}", "sets": 3, "reps": "8–10"},
+            {"name": "Goblet Squat", "sets": 3, "reps": "5–8"},
+            {"name": "Dumbbell Bench Press", "sets": 3, "reps": "6–10"},
+            {"name": "Seated Cable Row", "sets": 3, "reps": "8–10"},
         ]
 
     # ---------------------------------------------------------

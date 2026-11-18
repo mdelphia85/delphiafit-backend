@@ -2,7 +2,7 @@ from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, Foreign
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
-from app.database import Base
+from app.database.connection import Base
 
 
 class Instructor(Base):
@@ -11,6 +11,7 @@ class Instructor(Base):
     id = Column(Integer, primary_key=True, index=True)
 
     user_id = Column(Integer, nullable=False)
+    owner_coach_id = Column(Integer, ForeignKey("coaches.id"), nullable=True, index=True)
     agency = Column(String, nullable=False)          # police, fire, ems, military, sof, swat
     role = Column(String, nullable=False)            # lead instructor, assistant, evaluator
     active = Column(Boolean, default=True)

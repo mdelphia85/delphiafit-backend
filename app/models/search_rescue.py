@@ -2,13 +2,14 @@ from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, Float, 
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
-from app.database import Base
+from app.database.connection import Base
 
 
 class SearchRescue(Base):
     __tablename__ = "search_rescue_operations"
 
     id = Column(Integer, primary_key=True, index=True)
+    owner_user_id = Column(Integer, nullable=True, index=True)
 
     operation_name = Column(String, nullable=False)
     operation_type = Column(String, nullable=False)  # wilderness, urban, water, rope, collapsed

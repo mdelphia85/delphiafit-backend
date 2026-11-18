@@ -24,3 +24,19 @@ def list_periodization_blocks(
     user_id: int = Depends(get_current_user_id)
 ):
     return get_periodization_blocks(db, user_id)
+
+
+@router.delete("/{block_id}", status_code=204)
+def delete_periodization_block(
+    block_id: int,
+    db: Session = Depends(get_db),
+    user_id: int = Depends(get_current_user_id),
+):
+    from fastapi import HTTPException
+    from app.models.periodization import PeriodizationBlock
+
+    block = db.query(PeriodizationBlock).filter_by(id=block_id, user_id=user_id).first()
+    if block is None:
+        raise HTTPException(status_code=404, detail="Training block not found")
+    db.delete(block)
+    db.commit()

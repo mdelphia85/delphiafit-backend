@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, Boolean, Text, DateTime, ForeignKey
 from datetime import datetime
 
-from app.database import Base
+from app.database.connection import Base
 
 
 class Clearance(Base):

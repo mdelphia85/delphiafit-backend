@@ -1,0 +1,22 @@
+name: Weekly Plan Safety
+
+on:
+  pull_request:
+    paths:
+      - "app/services/weekly_plan.py"
+      - "tests/test_weekly_plan_safety.py"
+      - ".github/workflows/weekly-plan-ci.yml"
+  workflow_dispatch:
+
+jobs:
+  weekly-plan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate Python syntax
+        run: python -m compileall -q app/services/weekly_plan.py tests/test_weekly_plan_safety.py
+      - name: Test weekly plan safety and schema
+        run: python -m unittest discover -s tests -p 'test_weekly_plan_safety.py' -v

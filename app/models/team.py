@@ -2,7 +2,7 @@ from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
-from app.database import Base
+from app.database.connection import Base
 
 
 class Team(Base):
@@ -23,8 +23,11 @@ class Team(Base):
 
     # Relationships
     coach = relationship("Coach", back_populates="teams")
+    coach_memberships = relationship("CoachTeamMembership", back_populates="team", cascade="all, delete-orphan")
     clients = relationship("Client", back_populates="team")
 
     schedules = relationship("Schedule", back_populates="team")
     recruits = relationship("Recruit", back_populates="team")
     invites = relationship("Invite", back_populates="team")
+
+    plans = relationship("Plan", back_populates="team")

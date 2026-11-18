@@ -1,26 +1,26 @@
 from typing import List, Optional
 from sqlalchemy.orm import Session
 
-from app.models.enterprise import Enterprise
+from app.models.enterprise import EnterpriseSettings
 
 
-def create_enterprise(db: Session, data: dict) -> Enterprise:
-    ent = Enterprise(**data)
+def create_enterprise(db: Session, data: dict) -> EnterpriseSettings:
+    ent = EnterpriseSettings(**data)
     db.add(ent)
     db.commit()
     db.refresh(ent)
     return ent
 
 
-def get_enterprise(db: Session, enterprise_id: int) -> Optional[Enterprise]:
-    return db.query(Enterprise).filter(Enterprise.id == enterprise_id).first()
+def get_enterprise(db: Session, enterprise_id: int) -> Optional[EnterpriseSettings]:
+    return db.query(EnterpriseSettings).filter(EnterpriseSettings.id == enterprise_id).first()
 
 
-def get_enterprises(db: Session) -> List[Enterprise]:
-    return db.query(Enterprise).all()
+def get_enterprises(db: Session) -> List[EnterpriseSettings]:
+    return db.query(EnterpriseSettings).all()
 
 
-def update_enterprise(db: Session, enterprise_id: int, data: dict) -> Optional[Enterprise]:
+def update_enterprise(db: Session, enterprise_id: int, data: dict) -> Optional[EnterpriseSettings]:
     ent = get_enterprise(db, enterprise_id)
     if not ent:
         return None

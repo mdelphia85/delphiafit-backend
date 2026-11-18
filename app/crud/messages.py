@@ -16,8 +16,8 @@ def get_message(db: Session, message_id: int) -> Optional[Message]:
     return db.query(Message).filter(Message.id == message_id).first()
 
 
-def get_messages_for_user(db: Session, user_id: int) -> List[Message]:
-    return db.query(Message).filter(Message.user_id == user_id).all()
+def get_messages(db: Session) -> List[Message]:
+    return db.query(Message).order_by(Message.created_at.desc()).all()
 
 
 def delete_message(db: Session, message_id: int) -> bool:

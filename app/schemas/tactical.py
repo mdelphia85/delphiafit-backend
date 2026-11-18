@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from datetime import datetime
 
 # ============================================================
@@ -6,12 +6,13 @@ from datetime import datetime
 # ============================================================
 
 class TacticalDrillBase(BaseModel):
-    division: str
+    division: str | None = None
     category: str
     name: str
     level: str | None = None
     duration: str | None = None
     notes: str | None = None
+    completed: bool = False
 
     # Shared generator fields
     intensity: str | None = None
@@ -64,6 +65,7 @@ class TacticalDrillUpdate(BaseModel):
     level: str | None = None
     duration: str | None = None
     notes: str | None = None
+    completed: bool | None = None
 
     intensity: str | None = None
     focus: str | None = None
@@ -99,5 +101,4 @@ class TacticalDrillUpdate(BaseModel):
 class TacticalDrillResponse(TacticalDrillBase):
     id: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

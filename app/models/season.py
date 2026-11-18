@@ -1,8 +1,8 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
-from app.database import Base
+from app.database.connection import Base
 
 
 class Season(Base):
@@ -13,6 +13,7 @@ class Season(Base):
     name = Column(String, nullable=False)  # 2024-2025, Spring 2026, etc.
     year = Column(Integer, nullable=True)
     sport = Column(String, nullable=True)
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
 
     is_active = Column(Boolean, default=True)
 
