@@ -29,5 +29,5 @@ def test_wrong_algorithm_is_rejected():
 def test_tampered_token_is_rejected():
     token = create_access_token({"sub": "17"})
     signed, signature = token.rsplit(".", 1)
-    changed = ("A" if signature[-1] != "A" else "B")
-    assert verify_token(signed + "." + signature[:-1] + changed) is None
+    changed = ("A" if signature[0] != "A" else "B")
+    assert verify_token(signed + "." + changed + signature[1:]) is None
