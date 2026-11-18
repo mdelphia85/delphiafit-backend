@@ -1,4 +1,5 @@
 from datetime import datetime
+import os
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel
@@ -14,6 +15,29 @@ from app.models.logs import AdminAuditLog
 from app.models.user import User
 
 router = APIRouter(prefix="/admin", tags=["Admin Auth"])
+
+
+def configured_owner_email() -> str | None:
+    """Return the explicitly provisioned administrator-owner identity."""
+    value = os.getenv("DELPHIAFIT_OWNER_EMAIL", "").strip().casefold()
+    return value or None
+
+
+def require_owner_admin(user: User) -> None:
+    """Owner-only administration; fail closed on Railway production when unconfigured."""
+    owner_email = configured_owner_email()
+    production = os.getenv("RAILWAY_ENVIRONMENT_NAME", "").strip().casefold() == "production"
+    if not owner_email:
+        if production:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Owner admin identity must be configured."
+            )
+        return
+    if user.email.strip().casefold() != owner_email:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Owner administration required"
+        )
 
 
 class AdminLogin(BaseModel):
@@ -67,6 +91,7 @@ def admin_login(data: AdminLogin, db: Session = Depends(get_db)):
     if user.is_suspended:
         record_audit(db, admin_ctx, "admin.login_denied", detail="Account suspended", success=False)
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account suspended")
+    require_owner_admin(user)
 
     token = create_access_token({
         "sub": str(user.id),
@@ -105,6 +130,7 @@ def verify_admin(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid admin token")
     if not token_data.get("is_admin") or not user.is_admin or user.is_suspended:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+    require_owner_admin(user)
     return {**token_data, "admin_id": user.id, "admin_email": user.email}
 
 

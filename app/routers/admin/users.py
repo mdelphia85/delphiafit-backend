@@ -14,7 +14,7 @@ from app.models.messages import Message
 from app.models.user import User
 from app.models.trainer import TrainerProfile
 from app.models.workout_log import WorkoutLog
-from app.routers.admin.auth import record_audit, verify_admin
+from app.routers.admin.auth import configured_owner_email, record_audit, verify_admin
 from app.schemas.user import AdminUserResponse
 
 router = APIRouter(prefix="/admin/users", tags=["Admin Users"])
@@ -191,6 +191,13 @@ def reset_streak(user_id: int, db: Session = Depends(get_db), admin=Depends(veri
 
 
 def _set_admin(db: Session, admin: dict, user: User, make_admin: bool) -> dict:
+    owner_email = configured_owner_email()
+    if owner_email:
+        is_owner = user.email.strip().casefold() == owner_email
+        if make_admin and not is_owner:
+            raise HTTPException(status_code=403, detail="Only the configured owner may have admin access")
+        if not make_admin and is_owner:
+            raise HTTPException(status_code=403, detail="Cannot revoke the configured owner")
     if user.is_admin == make_admin:
         return {"status": "success", "user": _serialize(user, _last_login(db, user.id))}
     if not make_admin:

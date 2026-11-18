@@ -382,4 +382,21 @@ jobs:
         env:
           JWT_SECRET: test-only-ci-key-not-used-in-production
           DATABASE_URL: 'sqlite://'
-        run: python -m pytest -q tests/test_ai_coach_guidance.py tests/test_ai_adaptive.py
+        run: python -m pytest -q tests/test_ai_coach_guidance.py tests/test_ai_adaptive.py tests/test_jwt_security.py tests/test_nutrition_idempotency.py tests/test_cors_policy.py
+
+  full-backend-suite:
+    runs-on: ubuntu-latest
+    env:
+      JWT_SECRET: ci-full-suite-only-key-do-not-use-in-production
+      DATABASE_URL: "sqlite:////tmp/delphiafit-full-suite-ci.db"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install backend test dependencies
+        run: python -m pip install -r requirements.txt pytest httpx
+      - name: Prepare isolated full-suite SQLite schema
+        run: python -m app.database.migrate
+      - name: Run complete discoverable backend suite
+        run: python -m pytest -q
