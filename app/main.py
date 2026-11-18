@@ -206,7 +206,10 @@ def get_cors_origins(staging_origin: str | None = None) -> list[str]:
     if staging_origin is None:
         staging_origin = os.getenv("STAGING_FRONTEND_ORIGIN")
     normalized_staging_origin = normalize_staging_frontend_origin(staging_origin)
-    origins = [*DEVELOPMENT_FRONTEND_ORIGINS, *PRODUCTION_FRONTEND_ORIGINS]
+    origins = [*PRODUCTION_FRONTEND_ORIGINS]
+    # Local development origins are never credentialed CORS origins on Railway production.
+    if os.getenv("RAILWAY_ENVIRONMENT_NAME", "").strip().casefold() != "production":
+        origins.extend(DEVELOPMENT_FRONTEND_ORIGINS)
     if normalized_staging_origin and normalized_staging_origin not in origins:
         origins.append(normalized_staging_origin)
     return origins
