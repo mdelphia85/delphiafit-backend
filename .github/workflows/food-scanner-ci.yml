@@ -9,6 +9,7 @@ on:
       - "tests/test_food_scanner.py"
       - "tests/test_food_scanner_contract.py"
       - "tests/test_food_scanner_postgres.py"
+      - "tests/test_nutrition_postgres.py"
       - ".github/workflows/food-scanner-ci.yml"
   workflow_dispatch:
 
@@ -55,4 +56,4 @@ jobs:
       - name: Verify scanner contracts and private history with test accounts
         run: python -m pytest -q tests/test_food_scanner_contract.py
       - name: Verify simultaneous history saves on disposable PostgreSQL
-        run: python -m pytest -q tests/test_food_scanner_postgres.py
+        run: python -m pytest -q tests/test_food_scanner_postgres.py tests/test_nutrition_postgres.py
