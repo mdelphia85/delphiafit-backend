@@ -446,3 +446,36 @@ def test_message_resolution_migration_preserves_legacy_status_and_is_idempotent(
             (1, True, False), (2, False, True)
         ]
     legacy.dispose()
+
+
+def test_configured_owner_is_only_authorized_admin(monkeypatch, admin):
+    """An is_admin database bit alone must not grant owner privileges."""
+    second_id = make_user("secondary-admin-qa@example.com", admin=True)
+    second_token = create_access_token({
+        "sub": str(second_id), "email": "secondary-admin-qa@example.com",
+        "is_admin": True, "token_version": 0
+    })
+    monkeypatch.setenv("DELPHIAFIT_OWNER_EMAIL", "root-admin@example.com")
+    assert client.get("/admin/me", headers=admin["h"]).status_code == 200
+    assert client.get("/admin/me", headers=_bearer(second_token)).status_code == 403
+    assert client.post("/admin/login", json={
+        "email": "secondary-admin-qa@example.com", "password": PASSWORD
+    }).status_code == 403
+
+    other = make_user("promotion-target@example.com")
+    assert client.put(
+        f"/admin/users/{other}/role", headers=admin["h"], json={"is_admin": True}
+    ).status_code == 403
+    assert client.put(
+        f"/admin/users/{admin['id']}/role", headers=admin["h"], json={"is_admin": False}
+    ).status_code == 403
+
+
+def test_production_owner_must_be_explicitly_configured(monkeypatch, admin):
+    monkeypatch.delenv("DELPHIAFIT_OWNER_EMAIL", raising=False)
+    monkeypatch.setenv("RAILWAY_ENVIRONMENT_NAME", "production")
+    assert client.get("/admin/me", headers=admin["h"]).status_code == 503
+    assert client.post("/admin/login", json={
+        "email": "root-admin@example.com", "password": PASSWORD
+    }).status_code == 503
+
