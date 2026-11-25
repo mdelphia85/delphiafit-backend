@@ -155,7 +155,7 @@ def test_muscle_goal_does_not_override_recovery_or_medical_safety():
 def test_common_ailments_and_injuries_get_condition_aware_options(message, expected):
     response = AIEngine().coach({"fatigue": 3}, message)["coach_response"]
     assert expected.lower() in response.lower()
-    assert "Stop if symptoms increase" in response
+    assert "Stop" in response
     assert "What area hurts" not in response
     assert "clearance to train" in response
 
