@@ -5,7 +5,7 @@ from app.services.smart_mode import SmartModeEngine
 from app.services.weekly_plan import WeeklyPlanGenerator
 from app.services.form_scoring import FormScoringEngine
 from app.services.velocity import VelocityEngine
-from app.services.injury_workout import modified_knee_workout
+from app.services.injury_workout import modified_knee_workout, modified_lower_back_workout
 
 
 class AIEngine:
@@ -37,7 +37,13 @@ class AIEngine:
             r"unable to bear weight|deform\w*|severe pain|severe\s+(?:[a-z-]+\s+){0,3}pain)\b",
             text,
         )
-        if urgent:
+        back_red_flags = re.search(
+            r"\\b(loss of (?:bowel|bladder) control|new (?:bowel|bladder) problems|"
+            r"numbness (?:around|in) (?:the )?groin|saddle numbness|"
+            r"(?:new|worsening|progressive) leg weakness)\\b",
+            text,
+        )
+        if urgent or back_red_flags:
             return {"coach_response": (
                 "Do not exercise based on this advice. Your reported symptoms may need urgent assessment. "
                 "Seek urgent medical care; for chest pain or difficulty breathing, call emergency services. "
@@ -55,6 +61,8 @@ class AIEngine:
                 # Answer the user's workout question directly. The modifier
                 # includes concise safety boundaries and an optional follow-up.
                 return {"coach_response": modified_knee_workout(user_data, message)}
+            if re.search(r"\\b(?:lower\\s*back|low\\s*back|lumbar|back pain|backache)\\b", text):
+                return {"coach_response": modified_lower_back_workout(user_data, message)}
             advice = (
                 "I can't safely suggest an injury-specific workout without knowing the affected area and "
                 "your limitations. What area hurts, how long has it hurt, and which movements aggravate it?"
