@@ -134,3 +134,44 @@ def test_muscle_goal_does_not_override_recovery_or_medical_safety():
     assert "2-3 sets" not in response
     response = AIEngine().coach({}, "Chest pain while lifting, want muscle")["coach_response"]
     assert "Do not exercise" in response
+
+
+@pytest.mark.parametrize("message", [
+    "lower back pain, what workouts can i do to not stress it out",
+    "Low back pain: give me a workout that avoids heavy lifting",
+    "My lumbar area hurts, can you suggest a workout?",
+])
+def test_lower_back_workout_answers_user_prompt(message):
+    response = AIEngine().coach({"fatigue": 3, "sleep_hours": 7}, message)["coach_response"]
+    assert "Lower-back-conscious workout option" in response
+    assert "gentle walking" in response
+    assert "Stop if symptoms increase" in response
+    assert "affected area" not in response
+    assert "What area hurts" not in response
+
+
+def test_lower_back_gym_workout_has_conditional_supported_options():
+    response = AIEngine().coach({}, "lower back pain, workout at the gym")["coach_response"]
+    assert "back supported" in response
+    assert "chest-supported row" in response
+    assert "only if" in response.lower()
+
+
+def test_lower_back_fatigue_avoids_workout():
+    response = AIEngine().coach(
+        {"fatigue": 9}, "lower back pain, give me a workout"
+    )["coach_response"]
+    assert "consider rest" in response
+    assert "Lower-back-conscious workout option" not in response
+
+
+@pytest.mark.parametrize("message", [
+    "lower back pain and loss of bladder control; give me a workout",
+    "lower back pain and numbness around the groin, help me exercise",
+    "lower back pain with progressive leg weakness; suggest exercises",
+])
+def test_lower_back_red_flags_never_return_workouts(message):
+    response = AIEngine().coach({}, message)["coach_response"]
+    assert "Do not exercise" in response
+    assert "urgent" in response
+    assert "Lower-back-conscious workout option" not in response
