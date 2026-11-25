@@ -18,10 +18,12 @@ def test_knee_pain_is_addressed_without_claiming_recovery(message):
     assert "normal training load" not in response
 
 
-def test_other_pain_takes_priority_over_workout_advice():
+def test_other_pain_returns_a_conservative_workout_without_forcing_a_question():
     response = AIEngine().coach({}, "My shoulder hurts. Give me a workout.")["coach_response"]
-    assert "affected area" in response
+    assert "shoulder pain" in response
+    assert "easy walking" in response
     assert "healthcare professional" in response
+    assert "What area hurts" not in response
     assert "seated light presses" not in response
 
 
@@ -134,3 +136,74 @@ def test_muscle_goal_does_not_override_recovery_or_medical_safety():
     assert "2-3 sets" not in response
     response = AIEngine().coach({}, "Chest pain while lifting, want muscle")["coach_response"]
     assert "Do not exercise" in response
+
+
+@pytest.mark.parametrize(("message", "expected"), [
+    ("lower back pain, what workouts can i do to not stress it out", "easy walking"),
+    ("My neck is stiff. Can you give me a workout?", "neck pain"),
+    ("My shoulder is injured. What workout can I do?", "easy walking"),
+    ("My wrist hurts and I still want to exercise.", "easy walking"),
+    ("My knee hurts, help me modify my workout.", "seated"),
+    ("I sprained an ankle, what exercises can I do?", "seated"),
+    ("Hip pain, can I still train?", "seated"),
+    ("My foot aches, suggest a workout.", "seated"),
+    ("I bruised my ribs, suggest a workout.", "forceful abdominal bracing"),
+    ("I have calf soreness, what training can I do?", "seated"),
+    ("Arthritis in my elbow, how can I exercise?", "easy walking"),
+    ("I have stomach cramps, what exercises can I do?", "forceful abdominal bracing"),
+])
+def test_common_ailments_and_injuries_get_condition_aware_options(message, expected):
+    response = AIEngine().coach({"fatigue": 3}, message)["coach_response"]
+    assert expected.lower() in response.lower()
+    assert "Stop" in response
+    assert "What area hurts" not in response
+    assert "clearance to train" in response
+
+
+@pytest.mark.parametrize("message", [
+    "I have the flu and a fever, can I work out?",
+    "I have a cold and sore throat. Can I go train?",
+    "I'm dizzy and nauseous, what workout should I do?",
+])
+def test_systemic_ailments_do_not_get_strenuous_workouts(message):
+    response = AIEngine().coach({}, message)["coach_response"]
+    assert "skip a structured" in response
+    assert "Rest and recover" in response
+
+
+def test_headache_and_migraine_do_not_get_generic_fitness_circuit():
+    response = AIEngine().coach({}, "I have a migraine. Can I work out?")["coach_response"]
+    assert "migraine" in response
+    assert "intense workout may aggravate" in response
+
+
+@pytest.mark.parametrize("message", [
+    "Lower back pain with loss of bladder control, help me exercise",
+    "Numbness around the groin with back pain, suggest a workout",
+    "I have worsening leg weakness, backache and want to train",
+])
+def test_red_flags_prevent_workout_suggestions(message):
+    response = AIEngine().coach({}, message)["coach_response"]
+    assert "Do not exercise" in response
+    assert "urgent" in response.lower()
+    assert "conservative modified workout" not in response
+
+
+def test_pain_without_a_location_receives_general_guidance_and_one_question():
+    response = AIEngine().coach({}, "I have pain and need a workout.")["coach_response"]
+    assert "affected area" in response
+    assert "What area is affected" in response
+
+
+def test_multiple_pain_areas_do_not_get_misleading_specific_exercises():
+    response = AIEngine().coach({}, "My knee and shoulder hurt. Suggest a workout.")["coach_response"]
+    assert "more than one area" in response
+    assert "full exercise circuit" in response
+
+
+def test_old_injury_does_not_hijack_unrelated_nutrition_question():
+    response = AIEngine().coach(
+        {"injuries": ["knee injury"]}, "What should I eat?"
+    )["coach_response"]
+    assert "protein source" in response
+    assert "knee pain" not in response
