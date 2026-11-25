@@ -38,9 +38,9 @@ class AIEngine:
             text,
         )
         back_red_flags = re.search(
-            r"\\b(loss of (?:bowel|bladder) control|new (?:bowel|bladder) problems|"
+            r"\b(loss of (?:bowel|bladder) control|new (?:bowel|bladder) problems|"
             r"numbness (?:around|in) (?:the )?groin|saddle numbness|"
-            r"(?:new|worsening|progressive) leg weakness)\\b",
+            r"(?:new|worsening|progressive) leg weakness)\b",
             text,
         )
         if urgent or back_red_flags:
@@ -61,7 +61,7 @@ class AIEngine:
                 # Answer the user's workout question directly. The modifier
                 # includes concise safety boundaries and an optional follow-up.
                 return {"coach_response": modified_knee_workout(user_data, message)}
-            if re.search(r"\\b(?:lower\\s*back|low\\s*back|lumbar|back pain|backache)\\b", text):
+            if re.search(r"\b(?:lower\s*back|low\s*back|lumbar|back pain|backache)\b", text):
                 return {"coach_response": modified_lower_back_workout(user_data, message)}
             advice = (
                 "I can't safely suggest an injury-specific workout without knowing the affected area and "
