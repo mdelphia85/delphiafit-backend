@@ -527,3 +527,76 @@ def test_ai_coach_hosted_mode_remains_available_after_opt_in(monkeypatch):
     assert response.status_code == 200, response.text
     assert response.json()["mode"] == "conversational"
     assert response.json()["coach_response"] == "Hosted test answer"
+
+
+
+def test_limited_coach_asks_short_questions_then_modifies_workout(monkeypatch):
+    monkeypatch.setenv("DELPHIAFIT_AI_COACH_MODE", "limited")
+    monkeypatch.setenv("OPENAI_API_KEY", "test-only-fake-provider-key")
+    user = make_user("guided-knee-" + uuid.uuid4().hex[:9] + "@example.com")
+
+    def ask(message: str):
+        return client.post("/ai/coach", headers=user, json={
+            "user_data": {"fatigue": 3, "sleep_hours": 7},
+            "message": message,
+        })
+
+    first = ask("Right knee pain, I need a workout that won't make it worse")
+    assert first.status_code == 200, first.text
+    assert first.json()["mode"] == "limited"
+    assert "which movements hurt your knee" in first.json()["coach_response"]
+    assert "Main work" not in first.json()["coach_response"]
+
+    second = ask("Stairs and squats hurt; I can sit comfortably")
+    assert second.status_code == 200, second.text
+    assert "strength training or cardio" in second.json()["coach_response"]
+    assert "Main work" not in second.json()["coach_response"]
+
+    third = ask("Strength training")
+    assert third.status_code == 200, third.text
+    assert "What equipment do you have" in third.json()["coach_response"]
+    assert "Main work" not in third.json()["coach_response"]
+
+    fourth = ask("Dumbbells")
+    assert fourth.status_code == 200, fourth.text
+    assert "Seated light dumbbell curls" in fourth.json()["coach_response"]
+    assert "right knee pain" in fourth.json()["coach_response"].lower()
+    assert "1–2 sets of 8–12" in fourth.json()["coach_response"]
+
+    fifth = ask("Make it 10 minutes")
+    assert fifth.status_code == 200, fifth.text
+    assert "10-minute strength session" in fifth.json()["coach_response"]
+    assert "1 set of 6–10" in fifth.json()["coach_response"]
+    assert len(client.get("/ai/records", headers=user).json()) == 5
+
+
+def test_guided_knee_conversation_state_is_per_account_and_expires(monkeypatch):
+    monkeypatch.setenv("DELPHIAFIT_AI_COACH_MODE", "limited")
+    alice = make_user("guided-alice-" + uuid.uuid4().hex[:8] + "@example.com")
+    bob = make_user("guided-bob-" + uuid.uuid4().hex[:8] + "@example.com")
+    first = client.post("/ai/coach", headers=alice, json={
+        "user_data": {}, "message": "Knee pain. Please modify my workout."
+    })
+    assert "which movements" in first.json()["coach_response"]
+    other = client.post("/ai/coach", headers=bob, json={
+        "user_data": {}, "message": "Strength training"
+    })
+    assert other.status_code == 200
+    assert "What equipment do you have" not in other.json()["coach_response"]
+    assert len(client.get("/ai/records", headers=alice).json()) == 1
+    assert len(client.get("/ai/records", headers=bob).json()) == 1
+
+
+def test_guided_coach_stops_on_followup_red_flags(monkeypatch):
+    monkeypatch.setenv("DELPHIAFIT_AI_COACH_MODE", "limited")
+    user = make_user("guided-danger-" + uuid.uuid4().hex[:8] + "@example.com")
+    first = client.post("/ai/coach", headers=user, json={
+        "user_data": {}, "message": "My knee hurts. Need a modified workout."
+    })
+    assert first.status_code == 200
+    next_turn = client.post("/ai/coach", headers=user, json={
+        "user_data": {}, "message": "I can't bear weight"
+    })
+    assert next_turn.status_code == 200
+    assert "Do not exercise" in next_turn.json()["coach_response"]
+    assert "Main work" not in next_turn.json()["coach_response"]
