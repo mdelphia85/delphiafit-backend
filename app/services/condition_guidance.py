@@ -28,6 +28,7 @@ _SYSTEMIC = re.compile(
     r"dizz\w*|faint\w*|concussion|wheez\w*|asthma attack|"
     r"cold|cough|congestion|chills|sore throat|unwell|illness|sick)\b", re.I
 )
+_FATIGUE = re.compile(r"\b(fatigue|exhausted|run down|worn out)\b", re.I)
 _HEAD = re.compile(r"\b(headaches?|migraine|head pain|head injury)\b", re.I)
 _WORKOUT = re.compile(
     r"\b(workout|workouts|work out|exercise|exercises|train\w*|"
@@ -80,6 +81,15 @@ def adapt_workout(user_data: dict, message: str, context: str) -> str:
             "only once you feel well and it is appropriate for your condition. "
             "Ask a healthcare professional if symptoms persist or worsen. "
             "Do not use exercise to push through illness."
+        )
+
+    if _FATIGUE.search(context):
+        return (
+            "With the fatigue you described, consider a rest day rather than "
+            "pushing through a demanding workout. If comfortable, a short "
+            "easy walk or gentle mobility may be a recovery option, but "
+            "stop if you feel worse. Unusual or persistent fatigue deserves "
+            "medical advice; don't use training to push through feeling unwell."
         )
 
     if _HEAD.search(context):
