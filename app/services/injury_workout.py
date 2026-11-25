@@ -104,7 +104,7 @@ def modified_knee_workout(user_data: dict, message: str) -> str:
     question = message.lower()
     if not _WORKOUT_WORDS.search(question):
         return (
-            "For knee pain, what movements make it worse, and when did it begin? "
+            "For knee pain, which movements make it worse, and when did it begin? "
             "I can suggest a knee-sparing workout modification if you want one, "
             "but I cannot determine whether exercising with the injury is safe."
         )
