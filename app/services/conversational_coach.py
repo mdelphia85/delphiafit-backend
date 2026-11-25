@@ -40,6 +40,11 @@ class ConversationalCoachError(Exception):
 
 
 def is_conversational_coach_configured() -> bool:
+    # Explicitly allow DelphiaFit to run with its original no-cost guidance
+    # while keeping any already-provisioned API key available for later use.
+    # Never call the paid provider when the owner has selected limited mode.
+    if os.getenv("DELPHIAFIT_AI_COACH_MODE", "auto").strip().casefold() == "limited":
+        return False
     return bool(os.getenv("OPENAI_API_KEY", "").strip())
 
 
