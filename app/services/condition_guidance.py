@@ -52,7 +52,13 @@ _AREAS = (
 
 
 def is_condition_question(message: str, context: str = "") -> bool:
-    return bool(_SYMPTOM.search(message + " " + context) or _URGENT.search(message + " " + context))
+    # An old saved injury must not hijack unrelated questions, such as nutrition.
+    # It becomes relevant again when the user requests a workout modification.
+    return bool(
+        _SYMPTOM.search(message)
+        or _URGENT.search(message)
+        or (_WORKOUT.search(message) and (_SYMPTOM.search(context) or _URGENT.search(context)))
+    )
 
 
 def _location(context: str) -> tuple[str | None, str | None, int]:
