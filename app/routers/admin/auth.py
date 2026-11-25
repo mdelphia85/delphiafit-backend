@@ -28,11 +28,15 @@ def require_owner_admin(user: User) -> None:
     owner_email = configured_owner_email()
     production = os.getenv("RAILWAY_ENVIRONMENT_NAME", "").strip().casefold() == "production"
     if not owner_email:
-        if production:
+        if production and os.getenv("DELPHIAFIT_OWNER_COMPAT_MODE", "").strip() != "1":
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Owner admin identity must be configured."
             )
+        # Temporary release compatibility: existing active is_admin accounts
+        # retain their previous authorization until the owner email is set.
+        # This never grants admin status; the caller still checks the user's
+        # current database is_admin flag and suspension state.
         return
     if user.email.strip().casefold() != owner_email:
         raise HTTPException(
