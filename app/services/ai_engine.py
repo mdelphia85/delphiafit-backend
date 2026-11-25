@@ -52,12 +52,13 @@ class AIEngine:
                 "swollen joint, or fever with joint pain.\n\n"
             )
             if re.search(r"\bknees?\b", text):
-                advice = modified_knee_workout(user_data, message)
-            else:
-                advice = (
-                    "I can't safely suggest an injury-specific workout without knowing the affected area and "
-                    "your limitations. What area hurts, how long has it hurt, and which movements aggravate it?"
-                )
+                # Answer the user's workout question directly. The modifier
+                # includes concise safety boundaries and an optional follow-up.
+                return {"coach_response": modified_knee_workout(user_data, message)}
+            advice = (
+                "I can't safely suggest an injury-specific workout without knowing the affected area and "
+                "your limitations. What area hurts, how long has it hurt, and which movements aggravate it?"
+            )
             return {"coach_response": safety + advice}
 
         muscle_goal = bool(re.search(
