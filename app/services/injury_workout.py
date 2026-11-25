@@ -122,11 +122,12 @@ def modified_knee_workout(user_data: dict, message: str) -> str:
         fatigue = 0
 
     intro = (
-        f"For {side}knee pain, no workout can be guaranteed not to worsen an injury. "
-        "If your symptoms are new, unexplained, or worsening, seek a clinician's advice "
-        "before training. Only consider the following if you can sit, move your arms, "
-        "and exercise without knee pain or medical restrictions. "
-        "Stop immediately if positioning or any movement causes or increases pain. "
+        f"With {side}knee pain, I'd modify your workout to avoid loading or twisting "
+        "the painful knee. Only consider the seated options below if sitting and "
+        "moving your arms are comfortable and you have no exercise restrictions. "
+        "No workout is guaranteed to prevent further injury. Stop if pain increases, "
+        "and get professional advice for new or worsening symptoms; seek urgent care "
+        "for severe pain, marked swelling, or trouble bearing weight. "
         "This is not clearance to train.\n\n"
     )
 
@@ -168,8 +169,8 @@ def modified_knee_workout(user_data: dict, message: str) -> str:
         + "\n".join(f"  - {exercise}" for exercise in exercises)
         + "\n- Cool-down: gentle arm movement and relaxed breathing.\n"
         + "Skip squats, lunges, step-ups, jumping, running, and deep knee bends for now "
-        "rather than trying to push through the pain.\n"
+        "rather than pushing through the pain.\n"
         + equipment_note + "\n\n"
-        + "Which movements aggravate the knee, how long has it hurt, and what equipment "
-        "do you have? Those answers help narrow the workout options."
+        + "Do you have gym equipment, dumbbells, or bands? I can swap these options "
+        "to match your equipment and the movements that bother your knee."
     )
