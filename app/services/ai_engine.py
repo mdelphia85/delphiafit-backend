@@ -34,7 +34,7 @@ class AIEngine:
 
         urgent = re.search(
             r"\b(chest pain|shortness of breath|difficulty breathing|can't bear weight|cannot bear weight|"
-            r"unable to bear weight|deform\w*|severe pain)\b",
+            r"unable to bear weight|deform\w*|severe pain|severe\s+(?:[a-z-]+\s+){0,3}pain)\b",
             text,
         )
         if urgent:
