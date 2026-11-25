@@ -469,33 +469,50 @@ def test_configured_owner_is_only_authorized_admin(monkeypatch, admin):
     assert client.put(
         f"/admin/users/{admin['id']}/role", headers=admin["h"], json={"is_admin": False}
     ).status_code == 403
+    # This user was granted is_admin only to test owner restrictions;
+    # reset it so subsequent sole-owner tests model actual production.
+    with SessionLocal() as db:
+        db.query(User).filter(User.id == second_id).update({"is_admin": False})
+        db.commit()
 
 
-def test_production_owner_must_be_explicitly_configured(monkeypatch, admin):
+def test_production_single_existing_admin_retains_access_without_email(monkeypatch, admin):
     monkeypatch.delenv("DELPHIAFIT_OWNER_EMAIL", raising=False)
     monkeypatch.setenv("RAILWAY_ENVIRONMENT_NAME", "production")
-    assert client.get("/admin/me", headers=admin["h"]).status_code == 503
+    assert client.get("/admin/me", headers=admin["h"]).status_code == 200
     assert client.post("/admin/login", json={
         "email": "root-admin@example.com", "password": PASSWORD
-    }).status_code == 503
+    }).status_code == 200
 
-
-
-def test_temporary_production_compat_preserves_existing_admin_only(monkeypatch, admin):
-    # Compatibility must never create new admin permissions or override a configured owner.
-    second_id = make_user("compat-nonadmin@example.com", admin=False)
-    second_token = create_access_token({
-        "sub": str(second_id),
-        "email": "compat-nonadmin@example.com",
+    normal_id = make_user("sole-owner-nonadmin@example.com", admin=False)
+    normal_token = create_access_token({
+        "sub": str(normal_id),
+        "email": "sole-owner-nonadmin@example.com",
         "is_admin": False,
         "token_version": 0,
     })
-    monkeypatch.setenv("RAILWAY_ENVIRONMENT_NAME", "production")
-    monkeypatch.delenv("DELPHIAFIT_OWNER_EMAIL", raising=False)
-    monkeypatch.setenv("DELPHIAFIT_OWNER_COMPAT_MODE", "1")
-    assert client.get("/admin/me", headers=admin["h"]).status_code == 200
-    assert client.get("/admin/me", headers=_bearer(second_token)).status_code == 403
+    assert client.get("/admin/me", headers=_bearer(normal_token)).status_code == 403
+    assert client.put(
+        f"/admin/users/{normal_id}/role", headers=admin["h"], json={"is_admin": True}
+    ).status_code == 403
 
-    # As soon as the owner email is set, compatibility cannot bypass owner-only checks.
+
+def test_production_multiple_admins_without_owner_email_fail_closed(monkeypatch, admin):
+    monkeypatch.delenv("DELPHIAFIT_OWNER_EMAIL", raising=False)
+    monkeypatch.setenv("RAILWAY_ENVIRONMENT_NAME", "production")
+    other_id = make_user("unexpected-admin-qa@example.com", admin=True)
+    try:
+        assert client.get("/admin/me", headers=admin["h"]).status_code == 503
+        assert client.post("/admin/login", json={
+            "email": "root-admin@example.com", "password": PASSWORD
+        }).status_code == 503
+    finally:
+        with SessionLocal() as db:
+            db.query(User).filter(User.id == other_id).update({"is_admin": False})
+            db.commit()
+
+
+def test_explicit_owner_email_remains_authoritative(monkeypatch, admin):
+    monkeypatch.setenv("RAILWAY_ENVIRONMENT_NAME", "production")
     monkeypatch.setenv("DELPHIAFIT_OWNER_EMAIL", "some-other-owner@example.com")
     assert client.get("/admin/me", headers=admin["h"]).status_code == 403
