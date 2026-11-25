@@ -407,10 +407,11 @@ def test_conversational_coach_answers_unrelated_questions_and_uses_same_user_his
     assert len(client.get("/ai/records", headers=second).json()) == 1
 
 
-def test_model_error_is_not_saved_or_exposed(monkeypatch):
+def test_model_error_falls_back_without_exposing_provider_details(monkeypatch):
     from app.services import conversational_coach
 
     monkeypatch.setenv("OPENAI_API_KEY", "mock-key-not-real")
+    monkeypatch.setenv("DELPHIAFIT_AI_COACH_MODE", "auto")
 
     class BrokenClient:
         def __init__(self, **kwargs):
@@ -432,9 +433,12 @@ def test_model_error_is_not_saved_or_exposed(monkeypatch):
     monkeypatch.setattr(conversational_coach, "OpenAI", BrokenClient)
     account = make_user("ai-provider-error-" + uuid.uuid4().hex[:8] + "@example.com")
     response = client.post("/ai/coach", headers=account, json={"user_data": {}, "message": "Hello?"})
-    assert response.status_code == 500
+    assert response.status_code == 200
+    assert response.json()["mode"] == "limited"
     assert "PRIVATE_PROVIDERTOKEN" not in response.text
-    assert client.get("/ai/records", headers=account).json() == []
+    saved = client.get("/ai/records", headers=account).json()
+    assert len(saved) == 1
+    assert saved[0]["result"]["mode"] == "limited"
 
 
 def test_empty_question_is_rejected_and_limited_mode_is_honestly_labeled(monkeypatch):
