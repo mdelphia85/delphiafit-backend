@@ -199,3 +199,11 @@ def test_multiple_pain_areas_do_not_get_misleading_specific_exercises():
     response = AIEngine().coach({}, "My knee and shoulder hurt. Suggest a workout.")["coach_response"]
     assert "more than one area" in response
     assert "full exercise circuit" in response
+
+
+def test_old_injury_does_not_hijack_unrelated_nutrition_question():
+    response = AIEngine().coach(
+        {"injuries": ["knee injury"]}, "What should I eat?"
+    )["coach_response"]
+    assert "protein source" in response
+    assert "knee pain" not in response
