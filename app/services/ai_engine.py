@@ -5,6 +5,7 @@ from app.services.smart_mode import SmartModeEngine
 from app.services.weekly_plan import WeeklyPlanGenerator
 from app.services.form_scoring import FormScoringEngine
 from app.services.velocity import VelocityEngine
+from app.services.injury_workout import modified_knee_workout
 
 
 class AIEngine:
@@ -51,14 +52,7 @@ class AIEngine:
                 "swollen joint, or fever with joint pain.\n\n"
             )
             if re.search(r"\bknees?\b", text):
-                advice = (
-                    "For knee pain, avoid movements that aggravate the knee. If you can sit and exercise without "
-                    "knee pain and have no restrictions from your clinician, you could try a gentle seated "
-                    "upper-body session: seated light rows and seated light presses, 1-2 sets of 8-12 "
-                    "comfortable repetitions each, with rests between sets. Stop if positioning or any exercise "
-                    "causes pain; skip the session if you cannot do it comfortably. This is not clearance to train.\n\n"
-                    "How long has the pain been present, and which movements make it worse?"
-                )
+                advice = modified_knee_workout(user_data, message)
             else:
                 advice = (
                     "I can't safely suggest an injury-specific workout without knowing the affected area and "
