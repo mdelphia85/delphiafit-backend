@@ -192,6 +192,10 @@ def reset_streak(user_id: int, db: Session = Depends(get_db), admin=Depends(veri
 
 def _set_admin(db: Session, admin: dict, user: User, make_admin: bool) -> dict:
     owner_email = configured_owner_email()
+    if make_admin and user.id != admin["admin_id"]:
+        # The site has exactly one owner-admin. Do not add new administrators
+        # just because the owner's email has not yet been configured.
+        raise HTTPException(status_code=403, detail="Only the existing owner can be an administrator")
     if owner_email:
         is_owner = user.email.strip().casefold() == owner_email
         if make_admin and not is_owner:
