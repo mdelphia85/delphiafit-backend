@@ -446,3 +446,79 @@ def test_message_resolution_migration_preserves_legacy_status_and_is_idempotent(
             (1, True, False), (2, False, True)
         ]
     legacy.dispose()
+
+
+def test_configured_owner_is_only_authorized_admin(monkeypatch, admin):
+    """An is_admin database bit alone must not grant owner privileges."""
+    second_id = make_user("secondary-admin-qa@example.com", admin=True)
+    second_token = create_access_token({
+        "sub": str(second_id), "email": "secondary-admin-qa@example.com",
+        "is_admin": True, "token_version": 0
+    })
+    monkeypatch.setenv("DELPHIAFIT_OWNER_EMAIL", "root-admin@example.com")
+    assert client.get("/admin/me", headers=admin["h"]).status_code == 200
+    assert client.get("/admin/me", headers=_bearer(second_token)).status_code == 403
+    assert client.post("/admin/login", json={
+        "email": "secondary-admin-qa@example.com", "password": PASSWORD
+    }).status_code == 403
+
+    other = make_user("promotion-target@example.com")
+    assert client.put(
+        f"/admin/users/{other}/role", headers=admin["h"], json={"is_admin": True}
+    ).status_code == 403
+    assert client.put(
+        f"/admin/users/{admin['id']}/role", headers=admin["h"], json={"is_admin": False}
+    ).status_code == 403
+    # This user was granted is_admin only to test owner restrictions;
+    # reset it so subsequent sole-owner tests model actual production.
+    with SessionLocal() as db:
+        db.query(User).filter(User.id == second_id).update({"is_admin": False})
+        db.commit()
+
+
+def test_production_single_existing_admin_retains_access_without_email(monkeypatch, admin):
+    # Earlier integration tests deliberately create several admin accounts.
+    # Reset only those synthetic roles to reproduce the actual single-owner site.
+    with SessionLocal() as db:
+        db.query(User).filter(User.id != admin["id"]).update({"is_admin": False})
+        db.query(User).filter(User.id == admin["id"]).update({"is_admin": True})
+        db.commit()
+    monkeypatch.delenv("DELPHIAFIT_OWNER_EMAIL", raising=False)
+    monkeypatch.setenv("RAILWAY_ENVIRONMENT_NAME", "production")
+    assert client.get("/admin/me", headers=admin["h"]).status_code == 200
+    assert client.post("/admin/login", json={
+        "email": "root-admin@example.com", "password": PASSWORD
+    }).status_code == 200
+
+    normal_id = make_user("sole-owner-nonadmin@example.com", admin=False)
+    normal_token = create_access_token({
+        "sub": str(normal_id),
+        "email": "sole-owner-nonadmin@example.com",
+        "is_admin": False,
+        "token_version": 0,
+    })
+    assert client.get("/admin/me", headers=_bearer(normal_token)).status_code == 403
+    assert client.put(
+        f"/admin/users/{normal_id}/role", headers=admin["h"], json={"is_admin": True}
+    ).status_code == 403
+
+
+def test_production_multiple_admins_without_owner_email_fail_closed(monkeypatch, admin):
+    monkeypatch.delenv("DELPHIAFIT_OWNER_EMAIL", raising=False)
+    monkeypatch.setenv("RAILWAY_ENVIRONMENT_NAME", "production")
+    other_id = make_user("unexpected-admin-qa@example.com", admin=True)
+    try:
+        assert client.get("/admin/me", headers=admin["h"]).status_code == 503
+        assert client.post("/admin/login", json={
+            "email": "root-admin@example.com", "password": PASSWORD
+        }).status_code == 503
+    finally:
+        with SessionLocal() as db:
+            db.query(User).filter(User.id == other_id).update({"is_admin": False})
+            db.commit()
+
+
+def test_explicit_owner_email_remains_authoritative(monkeypatch, admin):
+    monkeypatch.setenv("RAILWAY_ENVIRONMENT_NAME", "production")
+    monkeypatch.setenv("DELPHIAFIT_OWNER_EMAIL", "some-other-owner@example.com")
+    assert client.get("/admin/me", headers=admin["h"]).status_code == 403
