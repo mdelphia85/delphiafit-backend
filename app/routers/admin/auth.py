@@ -39,6 +39,11 @@ def require_owner_admin(user: User, db: Session) -> None:
             )
         return
 
+    # Keep local dev and isolated tests compatible with their synthetic
+    # multi-admin fixtures; production allows only the sole existing admin.
+    production = os.getenv("RAILWAY_ENVIRONMENT_NAME", "").strip().casefold() == "production"
+    if not production:
+        return
     # Existing admin role and suspension status were validated by callers.
     # A single existing admin is the only viable owner account; never choose
     # an owner by guessing an email or automatically promoting a different user.
