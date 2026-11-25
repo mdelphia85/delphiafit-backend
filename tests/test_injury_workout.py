@@ -87,9 +87,11 @@ def test_unrelated_knee_question_does_not_receive_unsolicited_workout():
     assert "Main work" not in answer
 
 
-def test_other_areas_are_not_mistaken_for_knee_pain():
+def test_other_areas_receive_their_own_conservative_workout():
     answer = _answer("My shoulder hurts, give me a workout")
-    assert "affected area" in answer
+    assert "shoulder pain" in answer
+    assert "easy walking" in answer
+    assert "not clearance to train" in answer
     assert "Modified upper-body workout option" not in answer
 
 
