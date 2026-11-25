@@ -11,7 +11,8 @@ _SYMPTOM = re.compile(
     r"bruis\w*|tendinitis|tendonitis|arthritis|bursitis|sciatica|"
     r"plantar fasciitis|sick|illness|flu|fever|cough|cold|"
     r"nausea|nauseous|vomit\w*|dizz\w*|faint\w*|infection|"
-    r"concussion|asthma|wheezing|fatigue|exhausted)\b", re.I
+    r"concussion|asthma|wheezing|fatigue|exhausted|cramps?|cramping|"
+    r"spasms?|tightness|chills|congestion|unwell|sore throat)\b", re.I
 )
 _URGENT = re.compile(
     r"\b(chest pain|difficulty breathing|shortness of breath|"
@@ -24,7 +25,8 @@ _URGENT = re.compile(
 )
 _SYSTEMIC = re.compile(
     r"\b(fever|flu|infection|vomit\w*|nauseous|nausea|"
-    r"dizz\w*|faint\w*|concussion|wheez\w*|asthma attack)\b", re.I
+    r"dizz\w*|faint\w*|concussion|wheez\w*|asthma attack|"
+    r"cold|cough|congestion|chills|sore throat|unwell|illness|sick)\b", re.I
 )
 _HEAD = re.compile(r"\b(headaches?|migraine|head pain|head injury)\b", re.I)
 _WORKOUT = re.compile(
@@ -128,7 +130,7 @@ def adapt_workout(user_data: dict, message: str, context: str) -> str:
 
     if not _WORKOUT.search(message):
         return (
-            f"For {name} discomfort, avoid movements that increase symptoms "
+            f"For {name} pain or discomfort, avoid movements that increase symptoms "
             "rather than exercising through pain. " + safety
             + " If you'd like a modified workout, tell me whether you train "
             "at home or at a gym."
@@ -172,7 +174,7 @@ def adapt_workout(user_data: dict, message: str, context: str) -> str:
         )
 
     return (
-        f"With {name} discomfort, here's a conservative modified workout "
+        f"With {name} pain or discomfort, here's a conservative modified workout "
         "option, only if each movement is comfortable:\n"
         + options + "\n\n" + safety
         + "\n\nDo you have any movement restrictions or equipment? "
