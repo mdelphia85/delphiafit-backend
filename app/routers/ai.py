@@ -283,12 +283,19 @@ def ai_coach(
                     })
                 except (TypeError, ValueError):
                     continue
-            result = {
-                "coach_response": conversational_coach.respond(
+            try:
+                hosted_answer = conversational_coach.respond(
                     req.message, user_data, used, prior
-                ),
-                "mode": "conversational",
-            }
+                )
+            except conversational_coach.ConversationalCoachError:
+                # Provider billing, quota, availability, or model-access failures
+                # must not make the previously working rule-based coach unusable.
+                # Do not log external provider details or user prompts.
+                logger.warning("Hosted AI Coach unavailable; using limited guidance")
+                result = ai.coach(user_data, req.message)
+                result["mode"] = "limited"
+            else:
+                result = {"coach_response": hosted_answer, "mode": "conversational"}
         else:
             # Keep existing functionality working until an API key is
             # configured. The UI must disclose that this is a limited mode.
