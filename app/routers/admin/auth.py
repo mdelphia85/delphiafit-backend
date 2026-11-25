@@ -23,24 +23,30 @@ def configured_owner_email() -> str | None:
     return value or None
 
 
-def require_owner_admin(user: User) -> None:
-    """Owner-only administration; fail closed on Railway production when unconfigured."""
+def require_owner_admin(user: User, db: Session) -> None:
+    """Allow only the configured owner, or the sole existing admin until configured.
+
+    An absent owner email must never lock out the only existing admin. This
+    transitional path is fail-closed if more than one account is an admin, and
+    only a previously provisioned admin can use it. New admin promotions are
+    disabled until the owner email is configured.
+    """
     owner_email = configured_owner_email()
-    production = os.getenv("RAILWAY_ENVIRONMENT_NAME", "").strip().casefold() == "production"
-    if not owner_email:
-        if production and os.getenv("DELPHIAFIT_OWNER_COMPAT_MODE", "").strip() != "1":
+    if owner_email:
+        if user.email.strip().casefold() != owner_email:
             raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Owner admin identity must be configured."
+                status_code=status.HTTP_403_FORBIDDEN, detail="Owner administration required"
             )
-        # Temporary release compatibility: existing active is_admin accounts
-        # retain their previous authorization until the owner email is set.
-        # This never grants admin status; the caller still checks the user's
-        # current database is_admin flag and suspension state.
         return
-    if user.email.strip().casefold() != owner_email:
+
+    # Existing admin role and suspension status were validated by callers.
+    # A single existing admin is the only viable owner account; never choose
+    # an owner by guessing an email or automatically promoting a different user.
+    admin_count = db.query(func.count(User.id)).filter(User.is_admin.is_(True)).scalar()
+    if admin_count != 1 or not user.is_admin or user.is_suspended:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Owner administration required"
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Owner admin identity must be configured."
         )
 
 
@@ -95,7 +101,7 @@ def admin_login(data: AdminLogin, db: Session = Depends(get_db)):
     if user.is_suspended:
         record_audit(db, admin_ctx, "admin.login_denied", detail="Account suspended", success=False)
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account suspended")
-    require_owner_admin(user)
+    require_owner_admin(user, db)
 
     token = create_access_token({
         "sub": str(user.id),
@@ -134,7 +140,7 @@ def verify_admin(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid admin token")
     if not token_data.get("is_admin") or not user.is_admin or user.is_suspended:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
-    require_owner_admin(user)
+    require_owner_admin(user, db)
     return {**token_data, "admin_id": user.id, "admin_email": user.email}
 
 
