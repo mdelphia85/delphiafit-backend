@@ -124,9 +124,9 @@ def guided_knee_reply(message: str, user_data: dict, prior_state: dict | None) -
             "minutes": _duration_minutes(message, user_data),
         }
         return _ask(
-            "I can help modify your workout, but I can't tell whether your knee is "
-            "safe to train. First: which movements hurt your knee, and can you sit "
-            "comfortably without pain?",
+            "For knee pain, I can help modify your workout, but this is not "
+            "clearance to train. First: which movements hurt your knee, "
+            "and can you sit comfortably without pain?",
             "symptoms", state,
         )
 
