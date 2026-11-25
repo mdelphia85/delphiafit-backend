@@ -479,3 +479,23 @@ def test_production_owner_must_be_explicitly_configured(monkeypatch, admin):
         "email": "root-admin@example.com", "password": PASSWORD
     }).status_code == 503
 
+
+
+def test_temporary_production_compat_preserves_existing_admin_only(monkeypatch, admin):
+    # Compatibility must never create new admin permissions or override a configured owner.
+    second_id = make_user("compat-nonadmin@example.com", admin=False)
+    second_token = create_access_token({
+        "sub": str(second_id),
+        "email": "compat-nonadmin@example.com",
+        "is_admin": False,
+        "token_version": 0,
+    })
+    monkeypatch.setenv("RAILWAY_ENVIRONMENT_NAME", "production")
+    monkeypatch.delenv("DELPHIAFIT_OWNER_EMAIL", raising=False)
+    monkeypatch.setenv("DELPHIAFIT_OWNER_COMPAT_MODE", "1")
+    assert client.get("/admin/me", headers=admin["h"]).status_code == 200
+    assert client.get("/admin/me", headers=_bearer(second_token)).status_code == 403
+
+    # As soon as the owner email is set, compatibility cannot bypass owner-only checks.
+    monkeypatch.setenv("DELPHIAFIT_OWNER_EMAIL", "some-other-owner@example.com")
+    assert client.get("/admin/me", headers=admin["h"]).status_code == 403
