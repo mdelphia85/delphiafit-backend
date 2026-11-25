@@ -13,7 +13,6 @@ from app.models.ai_record import AIRecord
 from app.models.workout_log import WorkoutLog
 from app.services.ai_engine import AIEngine
 from app.services import conversational_coach
-from app.services.coaching_dialogue import guided_knee_reply
 from app.utils.security import get_current_user_id
 
 router = APIRouter(prefix="/ai", tags=["AI"])
@@ -229,30 +228,6 @@ def list_records(user_id: int = Depends(get_current_user_id), db: Session = Depe
         _raise_ai_failure(db, "records read", user_id, exc, "Unable to load your coaching history.")
 
 
-def _limited_coach_result(db: Session, user_id: int, user_data: dict, message: str) -> dict:
-    """Use only recent, same-account saved state to ask the next question."""
-    previous = (
-        db.query(AIRecord)
-        .filter(AIRecord.user_id == user_id, AIRecord.feature == "coach")
-        .order_by(AIRecord.id.desc())
-        .first()
-    )
-    prior_state = None
-    if previous and previous.created_at:
-        age = datetime.utcnow() - previous.created_at
-        if timedelta(0) <= age <= timedelta(hours=2):
-            try:
-                prior_state = json.loads(previous.result_json).get("coach_state")
-            except (TypeError, ValueError):
-                pass
-
-    result = guided_knee_reply(message, user_data, prior_state)
-    if result is None:
-        result = ai.coach(user_data, message)
-    result["mode"] = "limited"
-    return result
-
-
 @router.get("/coach/capabilities")
 def ai_coach_capabilities():
     """Expose mode availability, never credentials or provider metadata."""
@@ -317,13 +292,15 @@ def ai_coach(
                 # must not make the previously working rule-based coach unusable.
                 # Do not log external provider details or user prompts.
                 logger.warning("Hosted AI Coach unavailable; using limited guidance")
-                result = _limited_coach_result(db, user_id, user_data, req.message)
+                result = ai.coach(user_data, req.message)
+                result["mode"] = "limited"
             else:
                 result = {"coach_response": hosted_answer, "mode": "conversational"}
         else:
             # Keep existing functionality working until an API key is
             # configured. The UI must disclose that this is a limited mode.
-            result = _limited_coach_result(db, user_id, user_data, req.message)
+            result = ai.coach(user_data, req.message)
+            result["mode"] = "limited"
         result["adaptive_inputs"] = used
         row = _save(
             db,
