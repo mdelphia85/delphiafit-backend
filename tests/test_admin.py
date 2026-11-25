@@ -477,6 +477,12 @@ def test_configured_owner_is_only_authorized_admin(monkeypatch, admin):
 
 
 def test_production_single_existing_admin_retains_access_without_email(monkeypatch, admin):
+    # Earlier integration tests deliberately create several admin accounts.
+    # Reset only those synthetic roles to reproduce the actual single-owner site.
+    with SessionLocal() as db:
+        db.query(User).filter(User.id != admin["id"]).update({"is_admin": False})
+        db.query(User).filter(User.id == admin["id"]).update({"is_admin": True})
+        db.commit()
     monkeypatch.delenv("DELPHIAFIT_OWNER_EMAIL", raising=False)
     monkeypatch.setenv("RAILWAY_ENVIRONMENT_NAME", "production")
     assert client.get("/admin/me", headers=admin["h"]).status_code == 200
