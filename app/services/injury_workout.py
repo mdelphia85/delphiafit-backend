@@ -126,7 +126,7 @@ def modified_knee_workout(user_data: dict, message: str) -> str:
         "the painful knee. Only consider the seated options below if sitting and "
         "moving your arms are comfortable and you have no exercise restrictions. "
         "Since no workout can be guaranteed not to worsen an injury, take care with any movement. Stop if pain increases, "
-        "and get professional advice for new or worsening symptoms; seek urgent care "
+        "and consult a qualified healthcare professional for new or worsening symptoms; seek urgent care "
         "for severe pain, marked swelling, or trouble bearing weight. "
         "This is not clearance to train.\n\n"
     )
