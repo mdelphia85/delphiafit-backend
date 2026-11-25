@@ -1,3 +1,4 @@
+import os
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import func, or_
@@ -192,9 +193,10 @@ def reset_streak(user_id: int, db: Session = Depends(get_db), admin=Depends(veri
 
 def _set_admin(db: Session, admin: dict, user: User, make_admin: bool) -> dict:
     owner_email = configured_owner_email()
-    if make_admin and user.id != admin["admin_id"]:
-        # The site has exactly one owner-admin. Do not add new administrators
-        # just because the owner's email has not yet been configured.
+    production = os.getenv("RAILWAY_ENVIRONMENT_NAME", "").strip().casefold() == "production"
+    if production and make_admin and user.id != admin["admin_id"]:
+        # The live site has exactly one owner-admin; never promote additional
+        # administrators while the owner's email is not explicitly configured.
         raise HTTPException(status_code=403, detail="Only the existing owner can be an administrator")
     if owner_email:
         is_owner = user.email.strip().casefold() == owner_email
