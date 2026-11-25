@@ -458,3 +458,68 @@ def test_ai_coach_capabilities_reports_provider_readiness_without_secrets(monkey
     assert response.status_code == 200
     assert response.json() == {"mode": "conversational", "general_questions_available": True}
     assert "not-a-real-test-key" not in response.text
+
+
+
+def test_ai_coach_explicit_limited_mode_never_calls_paid_provider(monkeypatch):
+    user = make_user("ai-free-mode@example.com")
+    monkeypatch.setenv("OPENAI_API_KEY", "fake-secret-not-a-real-credential")
+    monkeypatch.setenv("DELPHIAFIT_AI_COACH_MODE", "limited")
+
+    def paid_provider_must_not_run(*_args, **_kwargs):
+        raise AssertionError("Limited mode must not contact OpenAI")
+
+    monkeypatch.setattr("app.routers.ai.conversational_coach.respond", paid_provider_must_not_run)
+    capabilities = client.get("/ai/coach/capabilities")
+    assert capabilities.status_code == 200
+    assert capabilities.json() == {"mode": "limited", "general_questions_available": False}
+
+    response = client.post("/ai/coach", headers=user, json={
+        "user_data": {"fatigue": 3, "sleep_hours": 7},
+        "message": "My right knee hurts. What workout can I do?",
+    })
+    assert response.status_code == 200, response.text
+    assert response.json()["mode"] == "limited"
+    assert "knee pain" in response.json()["coach_response"]
+    saved = client.get("/ai/records", headers=user).json()
+    assert len(saved) == 1
+    assert saved[0]["result"]["mode"] == "limited"
+
+
+def test_ai_coach_provider_failure_returns_existing_guidance_instead_of_500(monkeypatch):
+    from app.services.conversational_coach import ConversationalCoachError
+
+    user = make_user("ai-provider-fallback@example.com")
+    monkeypatch.setenv("OPENAI_API_KEY", "fake-secret-not-a-real-credential")
+    monkeypatch.setenv("DELPHIAFIT_AI_COACH_MODE", "auto")
+
+    def provider_unavailable(*_args, **_kwargs):
+        raise ConversationalCoachError("Provider request unavailable")
+
+    monkeypatch.setattr("app.routers.ai.conversational_coach.respond", provider_unavailable)
+    response = client.post("/ai/coach", headers=user, json={
+        "user_data": {"fatigue": 3},
+        "message": "My knee hurts; what workout can I do?",
+    })
+    assert response.status_code == 200, response.text
+    assert response.json()["mode"] == "limited"
+    assert "knee pain" in response.json()["coach_response"]
+    assert len(client.get("/ai/records", headers=user).json()) == 1
+
+
+def test_ai_coach_hosted_mode_remains_available_after_opt_in(monkeypatch):
+    user = make_user("ai-hosted-opt-in@example.com")
+    monkeypatch.setenv("OPENAI_API_KEY", "fake-secret-not-a-real-credential")
+    monkeypatch.setenv("DELPHIAFIT_AI_COACH_MODE", "auto")
+    monkeypatch.setattr(
+        "app.routers.ai.conversational_coach.respond",
+        lambda *_args, **_kwargs: "Hosted test answer",
+    )
+
+    response = client.post("/ai/coach", headers=user, json={
+        "user_data": {},
+        "message": "Explain how a car engine works.",
+    })
+    assert response.status_code == 200, response.text
+    assert response.json()["mode"] == "conversational"
+    assert response.json()["coach_response"] == "Hosted test answer"
