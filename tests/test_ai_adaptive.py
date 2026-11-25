@@ -527,3 +527,25 @@ def test_ai_coach_hosted_mode_remains_available_after_opt_in(monkeypatch):
     assert response.status_code == 200, response.text
     assert response.json()["mode"] == "conversational"
     assert response.json()["coach_response"] == "Hosted test answer"
+
+
+def test_knee_pain_question_gets_direct_modified_workout_not_forced_questionnaire(monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "fake-key-for-unit-test-only")
+    monkeypatch.setenv("DELPHIAFIT_AI_COACH_MODE", "limited")
+    user = make_user("direct-workout-" + uuid.uuid4().hex[:8] + "@example.com")
+    question = "I have right knee pain, I need a workout that wont cause more pain or damage"
+    response = client.post("/ai/coach", headers=user, json={
+        "user_data": {"fatigue": 3, "sleep_hours": 7},
+        "message": question,
+    })
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["mode"] == "limited"
+    answer = body["coach_response"]
+    assert "right knee pain" in answer
+    assert "Modified upper-body workout option" in answer
+    assert "Warm-up" in answer and "Main work" in answer and "Cool-down" in answer
+    assert "Skip squats, lunges" in answer
+    assert "do you have gym equipment" in answer.lower()
+    assert "first: which movements" not in answer.lower()
+    assert len(client.get("/ai/records", headers=user).json()) == 1
