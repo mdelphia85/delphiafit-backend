@@ -5,6 +5,8 @@ or a promise that movements are safe for a particular injury.
 """
 import re
 
+from app.services.injury_workout import modified_knee_workout
+
 _SYMPTOM = re.compile(
     r"\b(pain|painful|hurt|hurts|hurting|injur\w*|ache|aches|aching|headaches?|"
     r"migraine|sore|soreness|stiff\w*|swoll\w*|sprain\w*|strain\w*|"
@@ -108,6 +110,11 @@ def adapt_workout(user_data: dict, message: str, context: str) -> str:
         )
 
     area, name, area_count = _location(context)
+    # Preserve the existing detailed knee modifications, including duration,
+    # available equipment, cardio choices, and high-fatigue safeguards.
+    # The shared route handles every other recognized body area.
+    if area_count == 1 and name and re.fullmatch(r"knees?", name, re.I):
+        return modified_knee_workout(user_data, message)
     try:
         fatigue = float(user_data.get("fatigue") or 0)
     except (TypeError, ValueError):
